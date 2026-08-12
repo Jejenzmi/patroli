@@ -165,6 +165,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   )),
 
+            const SizedBox(height: 20),
+            GlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: P.cyan.withOpacity(.13),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: P.cyan.withOpacity(.3)),
+                    ),
+                    child: const Icon(Icons.menu_book_outlined, color: P.cyan, size: 20),
+                  ),
+                  const SizedBox(width: 13),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Panduan Penggunaan',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                        SizedBox(height: 2),
+                        Text('Buka di peramban: patroli.gokar.id',
+                            style: TextStyle(color: P.muted, fontSize: 11.5)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 24),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(

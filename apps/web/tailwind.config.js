@@ -40,9 +40,11 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(200%)' },
         },
+        // Tanpa transform: elemen ber-transform menjadi acuan position:fixed
+        // bagi anak-anaknya, sehingga dialog bisa melenceng dari layar.
         riseIn: {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
         ticker: { '0%': { opacity: '.35' }, '50%': { opacity: '1' }, '100%': { opacity: '.35' } },
       },

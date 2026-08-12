@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Inbox, Loader2, ChevronRight } from 'lucide-react';
@@ -133,7 +134,9 @@ export function Modal({
   footer?: React.ReactNode;
   wide?: boolean;
 }) {
-  return (
+  // Dirender ke <body>: pembungkus halaman memakai animasi transform, dan elemen
+  // position:fixed di dalamnya akan terikat ke pembungkus itu, bukan ke jendela.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -164,7 +167,8 @@ export function Modal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

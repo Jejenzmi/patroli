@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { UserCog, KeyRound, Smartphone, LogOut, ShieldCheck } from 'lucide-react';
+import { UserCog, KeyRound, Smartphone, LogOut, ShieldCheck, BookOpen } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Avatar, Field, Loading } from '../components/ui';
@@ -98,6 +98,21 @@ export default function Profile() {
             </p>
             <a href="/PATROLI.apk" className="btn-ghost mt-4 w-full" download>
               <Smartphone size={14} /> Unduh Aplikasi Android (APK)
+            </a>
+          </Panel>
+
+          <Panel title="Panduan Penggunaan" icon={BookOpen}>
+            <p className="text-[13px] leading-relaxed text-muted">
+              Panduan lengkap 51 halaman untuk pengguna web dan aplikasi lapangan: langkah demi
+              langkah tiap modul, alur kerja harian, dan pemecahan masalah yang sering terjadi.
+            </p>
+            <a
+              href="/Panduan-Penggunaan-PATROLI.pdf"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary mt-4 w-full"
+            >
+              <BookOpen size={14} /> Buka Panduan Penggunaan (PDF)
             </a>
           </Panel>
         </div>

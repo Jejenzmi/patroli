@@ -7,3 +7,6 @@ apps/mobile/.dart_tool/
 apps/mobile/dist/
 deploy/backups/
 *.log
+docs/panduan/img/
+docs/panduan/out/
+docs/panduan/panduan.html
