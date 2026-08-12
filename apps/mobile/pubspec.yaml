@@ -1,0 +1,36 @@
+name: patroli_mobile
+description: PATROLI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
+  dio: ^5.7.0
+  shared_preferences: ^2.3.2
+  geolocator: ^13.0.1
+  mobile_scanner: ^5.2.3
+  image_picker: ^1.1.2
+  intl: ^0.19.0
+  socket_io_client: ^2.0.3+1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  permission_handler: ^11.3.1
+  cached_network_image: ^3.4.1
+  cupertino_icons: ^1.0.8
+
+dependency_overrides:
+  # 4.6.2 mengambil compileSdk dari ekstensi Flutter yang baru tersedia pada
+  # Flutter 3.27+; 4.6.1 menetapkannya sendiri sehingga cocok dengan 3.24.5.
+  geolocator_android: 4.6.1
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

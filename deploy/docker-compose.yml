@@ -1,0 +1,96 @@
+name: patroli
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: patroli
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: patroli_db
+      TZ: Asia/Jakarta
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U patroli -d patroli_db']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - '127.0.0.1:9012:9000'
+      - '127.0.0.1:9013:9001'
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5027
+      TZ: Asia/Jakarta
+      APP_TZ: Asia/Jakarta
+      DATABASE_URL: postgresql://patroli:${DB_PASSWORD}@db:5432/patroli_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES: 30d
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: 'false'
+      MINIO_ACCESS_KEY: ${MINIO_USER}
+      MINIO_SECRET_KEY: ${MINIO_PASSWORD}
+      MINIO_BUCKET: patroli
+      STORAGE_PUBLIC_URL: /storage
+      CORS_ORIGIN: https://patroli.gokar.id
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '127.0.0.1:8113:80'
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c "while true; do
+        pg_dump -h db -U patroli patroli_db | gzip > /backups/patroli-$$(date +%Y%m%d-%H%M).sql.gz;
+        find /backups -name 'patroli-*.sql.gz' -mtime +14 -delete;
+        sleep 86400;
+      done"
+
+volumes:
+  db_data:
+  redis_data:
+  minio_data:

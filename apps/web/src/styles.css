@@ -1,0 +1,159 @@
+@import 'leaflet/dist/leaflet.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-void text-ink font-sans antialiased;
+    background-image: radial-gradient(1200px 600px at 12% -10%, rgba(255, 176, 32, 0.09), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(34, 211, 238, 0.08), transparent 55%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    @apply bg-amber/30 text-white;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-line rounded-full;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #2c3a58;
+    background-clip: content-box;
+  }
+  input,
+  select,
+  textarea {
+    @apply bg-abyss/70 border border-line rounded-xl px-3.5 py-2.5 text-sm text-ink outline-none transition;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @apply border-amber/60 ring-2 ring-amber/15;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted/60;
+  }
+  label {
+    @apply text-[11px] uppercase tracking-[.14em] text-muted font-semibold;
+  }
+  table {
+    @apply w-full text-sm;
+  }
+  th {
+    @apply text-left text-[11px] uppercase tracking-[.13em] text-muted font-semibold py-3 px-4 whitespace-nowrap;
+  }
+  td {
+    @apply py-3 px-4 border-t border-line/60 align-middle;
+  }
+}
+
+@layer components {
+  /* Panel kaca: dasar seluruh kartu di pusat komando. */
+  .panel {
+    @apply relative rounded-2xl border border-line/80 bg-panel/70 backdrop-blur-xl shadow-panel;
+  }
+  .panel-pad {
+    @apply p-5;
+  }
+  .panel-head {
+    @apply flex items-center justify-between gap-3 px-5 py-4 border-b border-line/70;
+  }
+  .panel-title {
+    @apply text-[13px] font-bold uppercase tracking-[.16em] text-ink/90;
+  }
+  .subtle {
+    @apply text-xs text-muted;
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-[.97] disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply btn bg-amber text-black hover:bg-amber-soft shadow-[0_8px_24px_-10px_rgba(255,176,32,.9)];
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-panel2/60 text-ink hover:border-amber/50 hover:text-amber;
+  }
+  .btn-danger {
+    @apply btn bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border;
+  }
+
+  .rail-item {
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition-all hover:text-ink hover:bg-white/[.04];
+  }
+  .rail-item-active {
+    @apply text-ink bg-amber/[.12] shadow-[inset_0_0_0_1px_rgba(255,176,32,.25)];
+  }
+  .rail-item-active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-amber;
+  }
+
+  /* Garis pemindai halus di kartu statistik. */
+  .scanline::after {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px opacity-60;
+    background: linear-gradient(90deg, transparent, rgba(255, 176, 32, 0.7), transparent);
+    animation: sweep 3.4s linear infinite;
+  }
+}
+
+/* Peta gelap: OSM diberi filter agar menyatu dengan tema. */
+.leaflet-container {
+  background: #0a0e17;
+  font-family: inherit;
+}
+.map-dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(190deg) brightness(0.82) contrast(0.92) saturate(0.6);
+}
+.leaflet-control-attribution {
+  background: rgba(10, 14, 23, 0.7) !important;
+  color: #5b6c88 !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a {
+  color: #7a8aa6 !important;
+}
+.leaflet-bar a {
+  background: #111726 !important;
+  color: #e6edf7 !important;
+  border-color: #1f2a40 !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #111726 !important;
+  color: #e6edf7 !important;
+  border: 1px solid #1f2a40;
+  box-shadow: 0 20px 40px -24px #000;
+}
+.marker-guard {
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.8));
+}

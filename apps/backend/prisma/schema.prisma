@@ -1,0 +1,621 @@
+// PATROLI — Security Guard Management & Patrol Tracking System
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  GUARD
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  RESIGNED
+}
+
+enum ScheduleStatus {
+  PLANNED
+  CONFIRMED
+  ABSENT
+  SWAPPED
+  DONE
+}
+
+enum AttendanceStatus {
+  ON_TIME
+  LATE
+  ABSENT
+  EARLY_LEAVE
+}
+
+enum PatrolStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum ScanMethod {
+  QR
+  NFC
+  GPS
+  MANUAL
+}
+
+enum CheckpointCondition {
+  NORMAL
+  ISSUE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_REVIEW
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum PanicStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum VisitorStatus {
+  INSIDE
+  CHECKED_OUT
+  DENIED
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  LOST
+  DAMAGED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  employeeId   String?    @unique
+  username     String     @unique
+  name         String
+  email        String?    @unique
+  phone        String?
+  passwordHash String
+  role         Role       @default(GUARD)
+  status       UserStatus @default(ACTIVE)
+  avatarUrl    String?
+  /// Untuk role CLIENT: dikunci ke satu perusahaan klien
+  clientId     String?
+  client       Client?    @relation(fields: [clientId], references: [id])
+  /// Untuk role GUARD: penempatan utama
+  homeSiteId   String?
+  homeSite     Site?      @relation("HomeSite", fields: [homeSiteId], references: [id])
+  rank         String?
+  joinedAt     DateTime?
+  lastLoginAt  DateTime?
+  deviceToken  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  schedules        Schedule[]
+  attendances      Attendance[]
+  patrols          PatrolSession[]
+  incidentsFiled   Incident[]      @relation("Reporter")
+  incidentsOwned   Incident[]      @relation("Assignee")
+  incidentUpdates  IncidentUpdate[]
+  panics           PanicAlert[]    @relation("PanicGuard")
+  panicsAcked      PanicAlert[]    @relation("PanicAck")
+  pings            LocationPing[]
+  handoversFrom    Handover[]      @relation("HandoverFrom")
+  handoversTo      Handover[]      @relation("HandoverTo")
+  equipment        Equipment[]
+  notifications    Notification[]
+  announcements    Announcement[]
+  auditLogs        AuditLog[]
+  visitorsHandled  Visitor[]
+  vehicleLogs      VehicleLog[]
+
+  @@index([role, status])
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  logoUrl     String?
+  contractNo  String?
+  contractEnd DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sites Site[]
+  users User[]
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  code      String   @unique
+  name      String
+  address   String?
+  city      String?
+  lat       Float
+  lng       Float
+  /// Radius geofence area site (meter)
+  radiusM   Int      @default(200)
+  timezone  String   @default("Asia/Jakarta")
+  photoUrl  String?
+  picName   String?
+  picPhone  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  zones       Zone[]
+  checkpoints Checkpoint[]
+  routes      PatrolRoute[]
+  shifts      Shift[]
+  schedules   Schedule[]
+  attendances Attendance[]
+  patrols     PatrolSession[]
+  incidents   Incident[]
+  panics      PanicAlert[]
+  visitors    Visitor[]
+  vehicles    VehicleLog[]
+  handovers   Handover[]
+  equipment   Equipment[]
+  homeUsers   User[]          @relation("HomeSite")
+
+  @@index([clientId])
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name      String
+  color     String   @default("#F5A524")
+  riskLevel Severity @default(LOW)
+  createdAt DateTime @default(now())
+
+  checkpoints Checkpoint[]
+
+  @@index([siteId])
+}
+
+model Checkpoint {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  zoneId      String?
+  zone        Zone?    @relation(fields: [zoneId], references: [id])
+  code        String   @unique
+  name        String
+  description String?
+  lat         Float
+  lng         Float
+  /// Toleransi jarak scan GPS (meter)
+  radiusM     Int      @default(30)
+  nfcTag      String?
+  photoUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  routeLinks RouteCheckpoint[]
+  scans      PatrolScan[]
+
+  @@index([siteId])
+}
+
+model PatrolRoute {
+  id                  String   @id @default(cuid())
+  siteId              String
+  site                Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  /// Estimasi durasi normal satu putaran (menit)
+  expectedDurationMin Int      @default(45)
+  /// Toleransi keterlambatan per checkpoint (menit)
+  graceMin            Int      @default(10)
+  /// Wajib scan berurutan sesuai orderIndex
+  enforceOrder        Boolean  @default(false)
+  requirePhoto        Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  checkpoints RouteCheckpoint[]
+  sessions    PatrolSession[]
+  schedules   Schedule[]
+
+  @@index([siteId])
+}
+
+model RouteCheckpoint {
+  id           String      @id @default(cuid())
+  routeId      String
+  route        PatrolRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  checkpointId String
+  checkpoint   Checkpoint  @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  orderIndex   Int
+  /// Menit sejak patroli dimulai, target tiba di titik ini
+  targetMinute Int         @default(0)
+
+  @@unique([routeId, checkpointId])
+  @@index([routeId, orderIndex])
+}
+
+model Shift {
+  id              String   @id @default(cuid())
+  siteId          String
+  site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name            String
+  /// Format HH:mm
+  startTime       String
+  endTime         String
+  crossesMidnight Boolean  @default(false)
+  /// Toleransi telat (menit) sebelum dihitung LATE
+  lateToleranceMin Int     @default(10)
+  color           String   @default("#22D3EE")
+  createdAt       DateTime @default(now())
+
+  schedules Schedule[]
+
+  @@index([siteId])
+}
+
+model Schedule {
+  id        String         @id @default(cuid())
+  siteId    String
+  site      Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  shiftId   String
+  shift     Shift          @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  guardId   String
+  guard     User           @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  routeId   String?
+  route     PatrolRoute?   @relation(fields: [routeId], references: [id])
+  /// Tanggal jaga (UTC midnight)
+  date      DateTime
+  status    ScheduleStatus @default(PLANNED)
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  attendance Attendance?
+  patrols    PatrolSession[]
+
+  @@unique([guardId, date, shiftId])
+  @@index([siteId, date])
+}
+
+model Attendance {
+  id             String           @id @default(cuid())
+  scheduleId     String?          @unique
+  schedule       Schedule?        @relation(fields: [scheduleId], references: [id])
+  guardId        String
+  guard          User             @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  siteId         String
+  site           Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  checkInAt      DateTime?
+  checkInLat     Float?
+  checkInLng     Float?
+  checkInPhoto   String?
+  checkInDistanceM Int?
+  checkOutAt     DateTime?
+  checkOutLat    Float?
+  checkOutLng    Float?
+  checkOutPhoto  String?
+  status         AttendanceStatus @default(ON_TIME)
+  lateMinutes    Int              @default(0)
+  workedMinutes  Int              @default(0)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([guardId, checkInAt])
+  @@index([siteId, checkInAt])
+}
+
+model PatrolSession {
+  id               String       @id @default(cuid())
+  siteId           String
+  site             Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  routeId          String
+  route            PatrolRoute  @relation(fields: [routeId], references: [id])
+  guardId          String
+  guard            User         @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  scheduleId       String?
+  schedule         Schedule?    @relation(fields: [scheduleId], references: [id])
+  startedAt        DateTime     @default(now())
+  endedAt          DateTime?
+  status           PatrolStatus @default(IN_PROGRESS)
+  totalCheckpoints Int          @default(0)
+  scannedCount     Int          @default(0)
+  missedCount      Int          @default(0)
+  issueCount       Int          @default(0)
+  /// Persentase kepatuhan 0-100
+  complianceRate   Float        @default(0)
+  distanceM        Int          @default(0)
+  durationMin      Int          @default(0)
+  notes            String?
+  createdAt        DateTime     @default(now())
+
+  scans PatrolScan[]
+  pings LocationPing[]
+
+  @@index([siteId, startedAt])
+  @@index([guardId, startedAt])
+}
+
+model PatrolScan {
+  id           String              @id @default(cuid())
+  sessionId    String
+  session      PatrolSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  checkpointId String
+  checkpoint   Checkpoint          @relation(fields: [checkpointId], references: [id])
+  scannedAt    DateTime            @default(now())
+  method       ScanMethod          @default(QR)
+  lat          Float?
+  lng          Float?
+  distanceM    Int?
+  photoUrl     String?
+  note         String?
+  condition    CheckpointCondition @default(NORMAL)
+  isLate       Boolean             @default(false)
+  orderIndex   Int                 @default(0)
+
+  @@unique([sessionId, checkpointId])
+  @@index([checkpointId, scannedAt])
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  siteId      String
+  site        Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reporter    User           @relation("Reporter", fields: [reporterId], references: [id])
+  assigneeId  String?
+  assignee    User?          @relation("Assignee", fields: [assigneeId], references: [id])
+  category    String
+  severity    Severity       @default(MEDIUM)
+  status      IncidentStatus @default(OPEN)
+  title       String
+  description String
+  lat         Float?
+  lng         Float?
+  locationHint String?
+  occurredAt  DateTime       @default(now())
+  slaDueAt    DateTime?
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  lossValue   Decimal?       @db.Decimal(16, 2)
+  closingNote String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  media   IncidentMedia[]
+  updates IncidentUpdate[]
+
+  @@index([siteId, status])
+  @@index([status, severity])
+}
+
+model IncidentMedia {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  url        String
+  mimeType   String   @default("image/jpeg")
+  caption    String?
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+model IncidentUpdate {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+model PanicAlert {
+  id              String      @id @default(cuid())
+  guardId         String
+  guard           User        @relation("PanicGuard", fields: [guardId], references: [id], onDelete: Cascade)
+  siteId          String
+  site            Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lat             Float?
+  lng             Float?
+  message         String?
+  status          PanicStatus @default(ACTIVE)
+  acknowledgedById String?
+  acknowledgedBy  User?       @relation("PanicAck", fields: [acknowledgedById], references: [id])
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  responseNote    String?
+  createdAt       DateTime    @default(now())
+
+  @@index([status, createdAt])
+}
+
+model LocationPing {
+  id         String         @id @default(cuid())
+  guardId    String
+  guard      User           @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  sessionId  String?
+  session    PatrolSession? @relation(fields: [sessionId], references: [id])
+  lat        Float
+  lng        Float
+  accuracyM  Float?
+  speedKph   Float?
+  batteryPct Int?
+  recordedAt DateTime       @default(now())
+
+  @@index([guardId, recordedAt])
+  @@index([sessionId])
+}
+
+model Visitor {
+  id          String        @id @default(cuid())
+  siteId      String
+  site        Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  handledById String?
+  handledBy   User?         @relation(fields: [handledById], references: [id])
+  badgeNo     String?
+  name        String
+  idType      String        @default("KTP")
+  idNumber    String?
+  company     String?
+  phone       String?
+  purpose     String
+  hostName    String?
+  vehiclePlate String?
+  photoUrl    String?
+  itemsBrought String?
+  checkInAt   DateTime      @default(now())
+  checkOutAt  DateTime?
+  status      VisitorStatus @default(INSIDE)
+  notes       String?
+
+  @@index([siteId, checkInAt])
+}
+
+model VehicleLog {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  recordedById String?
+  recordedBy  User?     @relation(fields: [recordedById], references: [id])
+  plate       String
+  vehicleType String    @default("MOBIL")
+  driverName  String?
+  company     String?
+  purpose     String?
+  cargo       String?
+  inAt        DateTime  @default(now())
+  outAt       DateTime?
+  photoUrl    String?
+  notes       String?
+
+  @@index([siteId, inAt])
+}
+
+model Handover {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  fromGuardId String
+  fromGuard   User     @relation("HandoverFrom", fields: [fromGuardId], references: [id])
+  toGuardId   String
+  toGuard     User     @relation("HandoverTo", fields: [toGuardId], references: [id])
+  shiftDate   DateTime
+  situation   String
+  pendingWork String?
+  equipmentOk Boolean  @default(true)
+  equipmentNote String?
+  signatureUrl String?
+  acknowledgedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, shiftDate])
+}
+
+model Equipment {
+  id           String          @id @default(cuid())
+  siteId       String
+  site         Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  code         String          @unique
+  name         String
+  category     String          @default("UMUM")
+  serialNumber String?
+  status       EquipmentStatus @default(AVAILABLE)
+  assignedToId String?
+  assignedTo   User?           @relation(fields: [assignedToId], references: [id])
+  assignedAt   DateTime?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([siteId, status])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  audience    String   @default("ALL")
+  siteId      String?
+  priority    Severity @default(LOW)
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  publishedAt DateTime @default(now())
+  expiresAt   DateTime?
+
+  @@index([publishedAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
