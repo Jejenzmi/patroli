@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _Header(me: me, state: state),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 120),
+                  padding: EdgeInsets.fromLTRB(16, 18, 16, bottomInset(context)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -194,7 +194,7 @@ class _QuickActions extends StatelessWidget {
       (Icons.report_gmailerrorred_outlined, 'Lapor Insiden', P.danger, const IncidentFormScreen()),
       (Icons.campaign_outlined, 'Pengumuman', P.cyan, const AnnouncementsScreen()),
       (Icons.history, 'Riwayat Patroli', P.violet, const ScheduleScreen(tabAwal: 1)),
-      (Icons.apps_rounded, 'Semua', P.muted, const ServicesScreen()),
+      (Icons.apps_rounded, 'Semua Layanan', P.muted, const ServicesScreen()),
     ];
 
     return Container(

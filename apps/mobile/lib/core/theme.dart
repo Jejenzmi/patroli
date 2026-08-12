@@ -18,6 +18,15 @@ class P {
   static const danger = Color(0xFFFF5A5A);
 }
 
+
+/// Tinggi bilah navigasi bawah pada kerangka utama.
+const double kNavBarHeight = 74;
+
+/// Jarak aman bawah untuk isi tab: bilah navigasi + tonjolan tombol pindai.
+/// Dipakai agar tidak ada tombol atau kartu yang tertutup tombol pindai.
+double bottomInset(BuildContext context) =>
+    kNavBarHeight + MediaQuery.of(context).padding.bottom + 34;
+
 ThemeData buildTheme() {
   final base = ThemeData.dark(useMaterial3: true);
   return base.copyWith(

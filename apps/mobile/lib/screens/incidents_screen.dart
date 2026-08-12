@@ -73,19 +73,6 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: null,
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: P.amber,
-        foregroundColor: Colors.black,
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const IncidentFormScreen()),
-          );
-          if (created == true) _load();
-        },
-        icon: const Icon(Icons.add_alert_outlined),
-        label: const Text('LAPOR', style: TextStyle(fontWeight: FontWeight.w800)),
-      ),
       body: Column(children: [
         GradientHeader(
           title: 'Laporan Insiden',
@@ -108,6 +95,26 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
               color: P.amber,
             ),
           ]),
+        ),
+        // Aksi utama diletakkan menetap di bawah kepala layar agar tidak
+        // menutupi kartu dan tidak bertumpuk dengan tombol pindai.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: P.danger, foregroundColor: Colors.white),
+              onPressed: () async {
+                final created = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const IncidentFormScreen()),
+                );
+                if (created == true) _load();
+              },
+              icon: const Icon(Icons.add_alert_outlined, size: 18),
+              label: const Text('LAPOR KEJADIAN BARU'),
+            ),
+          ),
         ),
         Expanded(
           child: RefreshIndicator(
@@ -132,7 +139,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                         )
                       ])
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset(context)),
                         itemCount: _items.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (_, i) {

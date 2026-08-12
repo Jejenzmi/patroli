@@ -499,15 +499,16 @@ part('Bagian B · Aplikasi Lapangan', 'Beranda', () => {
       ['Kepala layar', 'Sapaan, nama Anda, dan lencana status: <strong>Bertugas</strong> (hijau) atau <strong>Luar Dinas</strong> (abu-abu).'],
       ['Tiga petak', 'Jumlah jadwal hari ini, titik yang sudah dipindai pada patroli berjalan, dan jam sekarang.'],
       ['Kartu presensi', 'Tombol presensi masuk atau pulang beserta keterangan shift Anda.'],
-      ['Kisi pintasan', 'Delapan layanan: Buku Tamu, Kendaraan, Serah Terima, Jadwal Saya, Lapor Insiden, Pengumuman, Riwayat Patroli, dan Semua.'],
+      ['Kisi pintasan', 'Delapan layanan: Buku Tamu, Kendaraan, Serah Terima, Jadwal Saya, Lapor Insiden, Pengumuman, Riwayat Patroli, dan Semua Layanan.'],
       ['Jadwal jaga', 'Shift Anda hari ini beserta rutenya.'],
       ['Pengumuman', 'Geser ke samping untuk membaca pengumuman terbaru.'],
       ['Tombol darurat', 'Kartu merah di bagian bawah.'],
     ]
   ));
   s.push(sub('Bilah bawah'));
-  s.push(p('Lima tab: <strong>Beranda</strong>, <strong>Patroli</strong>, <strong>Layanan</strong>, <strong>Insiden</strong>, dan <strong>Profil</strong>. Tombol bundar kuning di tengah adalah <strong>pindai cepat</strong> — langsung membuka kamera pemindai bila ada patroli yang sedang berjalan.'));
-  s.push(hp('hp-layanan', 'Tab Layanan: seluruh perangkat tugas dikelompokkan.'));
+  s.push(p('Empat tab: <strong>Beranda</strong>, <strong>Patroli</strong>, <strong>Insiden</strong>, dan <strong>Profil</strong>. Tombol bundar kuning yang menggantung tepat di tengah adalah <strong>pindai cepat</strong> — langsung membuka kamera pemindai bila ada patroli yang sedang berjalan.'));
+  s.push(p('Layanan lain dibuka lewat pintasan <strong>Semua Layanan</strong> pada kisi di beranda.'));
+  s.push(hp('hp-layanan', 'Halaman Semua Layanan: seluruh perangkat tugas dikelompokkan menurut jenisnya.'));
   s.push(tip('Kiat', 'Tarik layar ke bawah pada beranda untuk menyegarkan data bila jadwal baru saja diubah komandan.'));
   return s.join('\n');
 });
@@ -543,10 +544,11 @@ part('Bagian B · Aplikasi Lapangan', 'Menjalankan Patroli', () => {
     'Ketuk <strong>MULAI PATROLI</strong> lalu setujui konfirmasi. Waktu mulai dicatat saat itu juga.',
   ]));
   s.push(hp('hp-patroli', 'Tab Patroli sebelum putaran dimulai.'));
+  s.push(hp('hp-patroli-aktif', 'Putaran berjalan: peta titik, kemajuan, dan tombol AKHIRI di kanan atas.'));
   s.push(sub('Memindai titik'));
   s.push(steps([
     'Datangi titik sesuai urutan pada daftar.',
-    'Ketuk tombol bundar <strong>pindai</strong> di tengah bilah bawah, atau tombol <strong>PINDAI TITIK</strong>.',
+    'Ketuk tombol bundar kuning <strong>pindai</strong> yang menggantung di tengah bilah bawah.',
     'Arahkan kamera ke stiker QR sampai kode terbaca sendiri. Gunakan tombol senter di kanan atas bila gelap.',
     'Titik yang berhasil dipindai berubah menjadi centang hijau dan bilah kemajuan bertambah.',
   ]));
@@ -561,7 +563,7 @@ part('Bagian B · Aplikasi Lapangan', 'Menjalankan Patroli', () => {
   s.push(warn('Perhatian', 'Verifikasi GPS hanya diterima bila Anda benar-benar berada dalam radius titik. Bila muncul pesan jarak terlalu jauh, mendekatlah ke titik lalu ulangi.'));
   s.push(sub('Mengakhiri putaran'));
   s.push(steps([
-    'Ketuk <strong>AKHIRI</strong> di kanan bawah.',
+    'Ketuk tombol <strong>AKHIRI</strong> di kanan atas, sebaris dengan angka kemajuan titik.',
     'Baca dialog: bila masih ada titik belum dipindai, jumlahnya disebutkan dan akan tercatat terlewat.',
     'Ketuk <strong>Ya, akhiri</strong>. Hasil kepatuhan langsung terkirim ke pusat komando.',
   ]));
@@ -573,7 +575,7 @@ part('Bagian B · Aplikasi Lapangan', 'Insiden, Darurat, dan Pos Jaga', () => {
   const s = [];
   s.push(sub('Melaporkan insiden'));
   s.push(steps([
-    'Buka tab <strong>Insiden</strong> lalu ketuk <strong>LAPOR</strong> — atau gunakan pintasan <em>Lapor Insiden</em> di beranda.',
+    'Buka tab <strong>Insiden</strong> lalu ketuk <strong>LAPOR KEJADIAN BARU</strong> — atau gunakan pintasan <em>Lapor Insiden</em> di beranda.',
     'Pilih kategori kejadian.',
     'Pilih tingkat keparahan; tenggat penanganan langsung ditampilkan di bawahnya.',
     'Isi judul singkat dan uraian: kronologi, tindakan yang sudah diambil, kondisi terakhir.',

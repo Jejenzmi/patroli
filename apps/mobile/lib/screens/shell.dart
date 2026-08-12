@@ -8,7 +8,6 @@ import 'home_screen.dart';
 import 'patrol_screen.dart';
 import 'incidents_screen.dart';
 import 'profile_screen.dart';
-import 'services_screen.dart';
 import 'scan_screen.dart';
 
 class ShellScreen extends StatefulWidget {
@@ -98,7 +97,6 @@ class _ShellScreenState extends State<ShellScreen> {
             children: const [
               HomeScreen(),
               PatrolScreen(),
-              ServicesScreen(),
               IncidentsScreen(),
               ProfileScreen(),
             ],
@@ -186,12 +184,13 @@ class _BottomBar extends StatelessWidget {
   final ValueChanged<int> onTap;
   const _BottomBar({required this.index, required this.onTap});
 
-  static const _items = [
+  static const _kiri = [
     (Icons.grid_view_rounded, 'Beranda', 0),
     (Icons.route_outlined, 'Patroli', 1),
-    (Icons.apps_rounded, 'Layanan', 2),
-    (Icons.warning_amber_rounded, 'Insiden', 3),
-    (Icons.person_outline, 'Profil', 4),
+  ];
+  static const _kanan = [
+    (Icons.warning_amber_rounded, 'Insiden', 2),
+    (Icons.person_outline, 'Profil', 3),
   ];
 
   @override
@@ -205,18 +204,16 @@ class _BottomBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (var i = 0; i < _items.length; i++) ...[
-            // Ruang untuk tombol pindai yang menggantung di tengah
-            if (i == 2) const SizedBox(width: 74),
+          for (final t in _kiri)
             Expanded(
-              child: _Tab(
-                icon: _items[i].$1,
-                label: _items[i].$2,
-                active: index == _items[i].$3,
-                onTap: () => onTap(_items[i].$3),
-              ),
+              child: _Tab(icon: t.$1, label: t.$2, active: index == t.$3, onTap: () => onTap(t.$3)),
             ),
-          ],
+          // Celah tepat di tengah untuk tombol pindai yang menggantung.
+          const SizedBox(width: 86),
+          for (final t in _kanan)
+            Expanded(
+              child: _Tab(icon: t.$1, label: t.$2, active: index == t.$3, onTap: () => onTap(t.$3)),
+            ),
         ],
       ),
     );

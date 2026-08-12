@@ -60,7 +60,7 @@ class ServicesScreen extends StatelessWidget {
             accent: P.cyan,
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+            padding: EdgeInsets.fromLTRB(16, 20, 16, bottomInset(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

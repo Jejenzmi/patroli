@@ -50,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: P.panel,
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset(context)),
           children: [
             GlassCard(
               padding: const EdgeInsets.all(20),

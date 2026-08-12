@@ -14,7 +14,6 @@ import '../blocs/duty_bloc.dart';
 import '../models/models.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/ui.dart';
-import 'scan_screen.dart';
 
 class PatrolScreen extends StatelessWidget {
   const PatrolScreen({super.key});
@@ -65,7 +64,7 @@ class _RouteChooser extends StatelessWidget {
       backgroundColor: P.panel,
       onRefresh: () async => context.read<DutyBloc>().add(DutyRefreshed()),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset(context)),
         children: [
           GlassCard(
             padding: const EdgeInsets.all(18),
@@ -217,6 +216,20 @@ class _ActivePatrol extends StatelessWidget {
                         style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                   ),
                   StatusPill('$done / ${cps.length}', color: P.cyan),
+                  const SizedBox(width: 8),
+                  // Aksi mengakhiri diletakkan di kepala layar, bukan di bawah,
+                  // agar tidak bertumpuk dengan tombol pindai yang melayang.
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: P.amber,
+                      side: BorderSide(color: P.amber.withOpacity(.45)),
+                    ),
+                    onPressed: busy ? null : () => _akhiri(context, done, cps.length),
+                    child: const Text('AKHIRI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -240,7 +253,7 @@ class _ActivePatrol extends StatelessWidget {
 
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
             children: [
               SizedBox(
                 height: 190,
@@ -294,69 +307,46 @@ class _ActivePatrol extends StatelessWidget {
           ),
         ),
 
-        // Aksi utama
+        // Petunjuk: pemindaian memakai tombol melayang di bilah bawah.
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          width: double.infinity,
           decoration: const BoxDecoration(
             color: P.abyss,
             border: Border(top: BorderSide(color: P.line)),
           ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: FilledButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () async {
-                            final code = await Navigator.push<String>(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ScanScreen()),
-                            );
-                            if (code != null && context.mounted) {
-                              context.read<DutyBloc>().add(
-                                    DutyCheckpointScanned(sessionId: session.id, code: code, method: 'QR'),
-                                  );
-                            }
-                          },
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('PINDAI TITIK'),
-                  ),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset(context) - 46),
+          child: Row(
+            children: [
+              const Icon(Icons.qr_code_scanner, size: 15, color: P.amber),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Ketuk tombol pindai kuning di tengah bilah bawah untuk memindai titik.',
+                  style: TextStyle(color: P.muted.withOpacity(.95), fontSize: 11.5, height: 1.35),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: OutlinedButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () async {
-                            final kurang = cps.length - done;
-                            final ok = await askConfirm(
-                              context,
-                              title: 'Akhiri putaran patroli?',
-                              message: kurang > 0
-                                  ? 'Masih ada $kurang titik yang belum dipindai dan akan tercatat sebagai terlewat pada laporan kepatuhan.'
-                                  : 'Seluruh titik sudah dipindai. Putaran akan ditutup dan hasilnya dikirim ke pusat komando.',
-                              detail: '$done dari ${cps.length} titik terpindai',
-                              confirmLabel: 'Ya, akhiri',
-                              tone: kurang > 0 ? DialogTone.warn : DialogTone.info,
-                            );
-                            if (ok && context.mounted) {
-                              context.read<DutyBloc>().add(DutyPatrolFinished(session.id));
-                            }
-                          },
-                    icon: const Icon(Icons.flag_outlined, size: 18),
-                    label: const Text('AKHIRI'),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _akhiri(BuildContext context, int done, int total) async {
+    final kurang = total - done;
+    final ok = await askConfirm(
+      context,
+      title: 'Akhiri putaran patroli?',
+      message: kurang > 0
+          ? 'Masih ada $kurang titik yang belum dipindai dan akan tercatat sebagai terlewat pada laporan kepatuhan.'
+          : 'Seluruh titik sudah dipindai. Putaran akan ditutup dan hasilnya dikirim ke pusat komando.',
+      detail: '$done dari $total titik terpindai',
+      confirmLabel: 'Ya, akhiri',
+      tone: kurang > 0 ? DialogTone.warn : DialogTone.info,
+    );
+    if (ok && context.mounted) {
+      context.read<DutyBloc>().add(DutyPatrolFinished(session.id));
+    }
   }
 }
 
