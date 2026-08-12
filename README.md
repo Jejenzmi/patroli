@@ -44,6 +44,27 @@ peran/SLA/nama event dipakai kedua sisi tanpa duplikasi.
 | GUARD | — | ✅ utama | jadwal, patroli, presensi, dan laporannya sendiri |
 | CLIENT | ✅ pemantauan | ❌ | hanya site milik perusahaannya |
 
+## Aplikasi lapangan (super app)
+
+Alur pembuka: **splash beranimasi → pengenalan 4 langkah (sekali pasang) → masuk → beranda**.
+Beranda bergaya super app: sapaan + petak status, kartu presensi, kisi pintasan 8 layanan,
+kartu patroli berjalan, jadwal hari ini, carousel pengumuman, dan tombol darurat.
+Bilah bawah lima tab dengan tombol pindai melayang di tengah.
+
+Layar: Beranda · Patroli (pilih rute → pindai titik → akhiri) · Layanan (buku tamu, kendaraan,
+serah terima, jadwal & presensi, riwayat patroli, lapor insiden, pengumuman) · Insiden · Profil.
+
+## Dialog konfirmasi
+
+Seluruh tindakan yang mengubah data — simpan, ubah, hapus, presensi masuk/pulang, mulai &
+akhiri patroli, kirim laporan, respons sinyal darurat, konfirmasi serah terima, dan keluar —
+melewati dialog konfirmasi beranimasi dengan warna sesuai jenis tindakan
+(biru simpan, kuning peringatan, merah hapus/darurat, ungu keluar).
+
+Di web: `apps/web/src/components/confirm.tsx` — dipanggil `await ask.save(...)`, `ask.remove(...)`,
+`ask.action(...)`, `ask.logout()` dari mana pun tanpa menambah state di halaman.
+Di mobile: `apps/mobile/lib/widgets/app_dialog.dart` — `askConfirm(...)` dan `showSuccess(...)`.
+
 ## Penggelaran
 
 ```bash
@@ -77,6 +98,18 @@ Hasil: `apps/mobile/dist/PATROLI.apk`, dengan alamat server ditanam lewat
 | danru1 / danru2 | danru123 | Supervisor |
 | guard1 … guard16 | guard123 | Anggota |
 | klien | klien123 | Klien (PT Mega Pratama Kawasan) |
+
+## Kesiapan produksi
+
+- Sandi di-hash bcrypt, JWT 30 hari, pembatas laju (20 percobaan masuk/menit, 600 permintaan/menit).
+- Helmet, CORS dikunci ke domain produksi, unggahan dibatasi jenis berkas dan 12 MB.
+- Galat async Express ditangkap terpusat; proses tidak mati karena satu permintaan gagal.
+- `ErrorBoundary` di web menahan galat render agar layar tidak menjadi putih.
+- Pemeriksaan kesehatan kontainer (`/api/health`) + rotasi log Docker (10 MB × 5).
+- Cadangan basis data harian otomatis, disimpan 14 hari.
+- Jejak audit merekam setiap perubahan data beserta pelaku dan alamat IP.
+- Uji regresi: `tools/e2e.sh` (API), `tools/uicheck.js` (render seluruh halaman),
+  `tools/dialogcheck.js` (dialog konfirmasi), `tools/mobilecheck.js` (UI aplikasi lapangan).
 
 ## Catatan teknis
 

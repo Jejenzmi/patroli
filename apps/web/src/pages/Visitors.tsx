@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { toast } from '../lib/store';
 import { Panel, PageHead, Table, Chip, Loading, Empty, Modal, Field, Select, SearchBox, Stat } from '../components/ui';
 import { dt, t, num } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Visitors() {
   const qc = useQueryClient();
@@ -22,6 +23,7 @@ export default function Visitors() {
 
   const save = async () => {
     if (!form.siteId || !form.name || !form.purpose) return toast.err('Site, nama, dan keperluan wajib diisi');
+    if (!(await ask.create('catatan tamu', form.name))) return;
     try {
       await api.post('/frontdesk/visitors', form);
       toast.ok('Tamu tercatat');
@@ -33,7 +35,8 @@ export default function Visitors() {
     }
   };
 
-  const checkout = async (id: string) => {
+  const checkout = async (id: string, name: string) => {
+    if (!(await ask.action('Catat tamu keluar?', 'Waktu keluar akan dicatat sekarang dan status tamu berubah menjadi sudah keluar.', 'Ya, catat keluar', name))) return;
     await api.post(`/frontdesk/visitors/${id}/checkout`, {});
     toast.ok('Tamu keluar area');
     qc.invalidateQueries({ queryKey: ['visitors'] });
@@ -95,7 +98,7 @@ export default function Visitors() {
                 <td><Chip value={v.status} /></td>
                 <td className="text-right">
                   {v.status === 'INSIDE' && (
-                    <button className="btn-ghost btn-sm" onClick={() => checkout(v.id)}>
+                    <button className="btn-ghost btn-sm" onClick={() => checkout(v.id, v.name)}>
                       <LogOut size={12} /> Keluar
                     </button>
                   )}

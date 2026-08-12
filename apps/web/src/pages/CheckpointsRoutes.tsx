@@ -8,6 +8,7 @@ import { api, qs } from '../lib/api';
 import { toast } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Select, Confirm, Table, Chip } from '../components/ui';
 import MapView from '../components/MapView';
+import { ask } from '../components/confirm';
 
 export default function CheckpointsRoutes() {
   const qc = useQueryClient();
@@ -24,6 +25,8 @@ export default function CheckpointsRoutes() {
   const shifts = useQuery({ queryKey: ['shifts-all', siteId], queryFn: () => api.get('/master/shifts' + qs({ siteId })) });
 
   const save = async () => {
+    const jenis = tab === 'titik' ? 'titik patroli' : tab === 'rute' ? 'rute patroli' : 'shift jaga';
+    if (!(await (form.id ? ask.save(jenis) : ask.create(jenis, form.name)))) return;
     try {
       if (tab === 'titik') {
         if (!form.siteId || !form.code || !form.name || !form.lat || !form.lng)

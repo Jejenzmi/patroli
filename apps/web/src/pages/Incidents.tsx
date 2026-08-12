@@ -6,6 +6,7 @@ import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Chip, Avatar, Loading, Empty, Modal, Field, Select, Textarea, SearchBox, Table } from '../components/ui';
 import { dt, ago, CATEGORY_LABEL, label } from '../lib/format';
+import { ask } from '../components/confirm';
 
 const CATEGORIES = Object.keys(CATEGORY_LABEL);
 
@@ -27,6 +28,7 @@ export default function Incidents() {
 
   const submit = async () => {
     if (!form.siteId || !form.title || !form.description) return toast.err('Lengkapi site, judul, dan uraian');
+    if (!(await ask.create('laporan insiden', `Tingkat ${label(form.severity)} — tenggat penanganan mulai dihitung begitu laporan tersimpan.`))) return;
     setSaving(true);
     try {
       await api.post('/incidents', { ...form, lossValue: form.lossValue ? Number(form.lossValue) : undefined });

@@ -40,37 +40,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           final busy = state.status == AuthStatus.loading;
           return Stack(
             children: [
-              // Latar radar berputar
+              // Latar: cahaya lembut yang tidak menyisakan sudut tajam
               Positioned(
-                top: -120,
-                left: -80,
+                top: -140,
+                left: -110,
                 child: AnimatedBuilder(
                   animation: _radar,
-                  builder: (_, __) => Transform.rotate(
-                    angle: _radar.value * 6.2832,
-                    child: Container(
-                      width: 420,
-                      height: 420,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: SweepGradient(
-                          colors: [P.amber.withOpacity(.16), Colors.transparent, Colors.transparent],
-                          stops: const [0, .28, 1],
-                        ),
+                  builder: (_, __) => Container(
+                    width: 420,
+                    height: 420,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          P.amber.withOpacity(.16 + _radar.value * .05),
+                          P.amber.withOpacity(.04),
+                          Colors.transparent,
+                        ],
+                        stops: const [0, .55, 1],
                       ),
                     ),
                   ),
                 ),
               ),
               Positioned(
-                bottom: -140,
-                right: -100,
+                bottom: -170,
+                right: -130,
                 child: Container(
-                  width: 340,
-                  height: 340,
+                  width: 380,
+                  height: 380,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: P.cyan.withOpacity(.07),
+                    gradient: RadialGradient(
+                      colors: [P.cyan.withOpacity(.13), P.cyan.withOpacity(.03), Colors.transparent],
+                      stops: const [0, .55, 1],
+                    ),
                   ),
                 ),
               ),

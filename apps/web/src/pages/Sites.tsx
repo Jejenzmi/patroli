@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Select, Confirm, SearchBox } from '../components/ui';
 import MapView from '../components/MapView';
+import { ask } from '../components/confirm';
 
 export default function Sites() {
   const qc = useQueryClient();
@@ -22,6 +23,7 @@ export default function Sites() {
     if (!form.clientId || !form.code || !form.name || !form.lat || !form.lng)
       return toast.err('Klien, kode, nama, dan koordinat wajib diisi');
     const body = { ...form, lat: Number(form.lat), lng: Number(form.lng), radiusM: Number(form.radiusM) || 200 };
+    if (!(await (form.id ? ask.save(`site ${form.name}`) : ask.create('site', form.name)))) return;
     try {
       if (form.id) await api.put(`/master/sites/${form.id}`, body);
       else await api.post('/master/sites', body);

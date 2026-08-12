@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { toast } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Confirm } from '../components/ui';
 import { d, num } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Clients() {
   const qc = useQueryClient();
@@ -16,6 +17,7 @@ export default function Clients() {
 
   const save = async () => {
     if (!form.code || !form.name) return toast.err('Kode dan nama klien wajib diisi');
+    if (!(await (form.id ? ask.save(`data klien ${form.name}`) : ask.create('klien', form.name)))) return;
     try {
       if (form.id) await api.put(`/master/clients/${form.id}`, form);
       else await api.post('/master/clients', form);

@@ -6,6 +6,7 @@ import { getSocket, toast } from '../lib/store';
 import { Panel, PageHead, Chip, Avatar, Loading, Empty } from '../components/ui';
 import MapView from '../components/MapView';
 import { dt, ago } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Panic() {
   const qc = useQueryClient();
@@ -27,6 +28,14 @@ export default function Panic() {
   }, [qc]);
 
   const act = async (id: string, kind: 'ack' | 'resolve') => {
+    const ok = await ask.action(
+      kind === 'ack' ? 'Respons sinyal darurat?' : 'Tutup sinyal darurat?',
+      kind === 'ack'
+        ? 'Anggota akan menerima pemberitahuan bahwa bantuan sedang menuju lokasi, dan nama Anda tercatat sebagai penanggap.'
+        : 'Sinyal ditandai selesai. Pastikan situasi di lapangan benar-benar sudah aman.',
+      kind === 'ack' ? 'Ya, respons' : 'Ya, tutup'
+    );
+    if (!ok) return;
     try {
       await api.post(`/incidents/panic/${id}/${kind}`, {});
       toast.ok(kind === 'ack' ? 'Sinyal direspons' : 'Sinyal ditutup');

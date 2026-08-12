@@ -6,6 +6,7 @@ import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Table, Chip, Avatar, Loading, Empty, Modal, Field, Select, SearchBox, Confirm } from '../components/ui';
 import { d, label } from '../lib/format';
+import { ask } from '../components/confirm';
 
 const ROLES = ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'GUARD', 'CLIENT'];
 
@@ -29,6 +30,7 @@ export default function Guards() {
 
   const save = async () => {
     if (!form.name || !form.username) return toast.err('Nama dan nama pengguna wajib diisi');
+    if (!(await (form.id ? ask.save(`data personel ${form.name}`) : ask.create('personel', form.name)))) return;
     try {
       if (form.id) await api.put(`/users/${form.id}`, form);
       else await api.post('/users', form);

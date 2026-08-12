@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../blocs/auth_bloc.dart';
+import '../widgets/app_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -171,22 +172,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 side: BorderSide(color: P.danger.withOpacity(.4)),
               ),
               onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (c) => AlertDialog(
-                    title: const Text('Keluar dari aplikasi?'),
-                    content: const Text('Anda perlu masuk kembali untuk melanjutkan tugas.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: P.danger),
-                        onPressed: () => Navigator.pop(c, true),
-                        child: const Text('Keluar'),
-                      ),
-                    ],
-                  ),
+                final ok = await askConfirm(
+                  context,
+                  title: 'Keluar dari aplikasi?',
+                  message: 'Sesi Anda diakhiri di perangkat ini. Pastikan tidak ada patroli atau presensi yang belum ditutup.',
+                  confirmLabel: 'Ya, keluar',
+                  tone: DialogTone.logout,
                 );
-                if (ok == true && context.mounted) {
+                if (ok && context.mounted) {
                   context.read<AuthBloc>().add(AuthLoggedOut());
                 }
               },

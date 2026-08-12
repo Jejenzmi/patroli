@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Chip, Avatar, Loading, Modal, Field, Select, Confirm } from '../components/ui';
 import { dayjs, label } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Schedule() {
   const qc = useQueryClient();
@@ -50,6 +51,12 @@ export default function Schedule() {
   }, [data]);
 
   const save = async () => {
+    if (
+      !(await (bulk
+        ? ask.create('roster massal', `${form.guardIds?.length || 0} anggota untuk rentang ${form.from || from} s.d. ${form.to || to}`)
+        : ask.create('jadwal jaga')))
+    )
+      return;
     try {
       if (bulk) {
         if (!form.siteId || !form.shiftId || !form.guardIds?.length) return toast.err('Lengkapi site, shift, dan anggota');

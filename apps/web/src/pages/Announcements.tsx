@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Select, Textarea, Chip, Avatar, Confirm } from '../components/ui';
 import { dt, ago, label } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Announcements() {
   const qc = useQueryClient();
@@ -18,6 +19,7 @@ export default function Announcements() {
 
   const save = async () => {
     if (!form.title || !form.body) return toast.err('Judul dan isi wajib diisi');
+    if (!(await ask.create('pengumuman', `Akan dikirim sebagai notifikasi ke ${form.audience === 'ALL' ? 'seluruh pengguna' : label(form.audience)}.`))) return;
     try {
       await api.post('/frontdesk/announcements', form);
       toast.ok('Pengumuman diterbitkan', 'Notifikasi terkirim ke penerima');

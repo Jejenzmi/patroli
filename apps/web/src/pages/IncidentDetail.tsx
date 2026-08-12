@@ -7,6 +7,7 @@ import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Chip, Avatar, Loading, Field, Select, Textarea } from '../components/ui';
 import MapView from '../components/MapView';
 import { dt, ago, rupiah, label, CATEGORY_LABEL } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function IncidentDetail() {
   const { id } = useParams();
@@ -24,7 +25,8 @@ export default function IncidentDetail() {
 
   const isCommand = ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'].includes(me?.role || '');
 
-  const patch = async (body: any) => {
+  const patch = async (body: any, tanya?: { judul: string; pesan: string }) => {
+    if (tanya && !(await ask.action(tanya.judul, tanya.pesan, 'Ya, perbarui'))) return;
     setBusy(true);
     try {
       await api.put(`/incidents/${id}`, body);
@@ -111,14 +113,32 @@ export default function IncidentDetail() {
             <Panel title="Tindakan Komando" icon={ShieldAlert}>
               <div className="space-y-3">
                 <Field label="Status penanganan">
-                  <Select value={data.status} onChange={(e) => patch({ status: e.target.value })} disabled={busy}>
+                  <Select
+                    value={data.status}
+                    onChange={(e) =>
+                      patch({ status: e.target.value }, {
+                        judul: `Ubah status menjadi ${label(e.target.value)}?`,
+                        pesan: 'Perubahan status tercatat pada riwayat penanganan dan pelapor akan menerima notifikasi.',
+                      })
+                    }
+                    disabled={busy}
+                  >
                     {['OPEN', 'IN_REVIEW', 'ESCALATED', 'RESOLVED', 'CLOSED'].map((s) => (
                       <option key={s} value={s}>{label(s)}</option>
                     ))}
                   </Select>
                 </Field>
                 <Field label="Tingkat keparahan">
-                  <Select value={data.severity} onChange={(e) => patch({ severity: e.target.value })} disabled={busy}>
+                  <Select
+                    value={data.severity}
+                    onChange={(e) =>
+                      patch({ severity: e.target.value }, {
+                        judul: `Ubah tingkat keparahan menjadi ${label(e.target.value)}?`,
+                        pesan: 'Tenggat SLA insiden ini akan dihitung ulang mengikuti tingkat keparahan yang baru.',
+                      })
+                    }
+                    disabled={busy}
+                  >
                     {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((s) => (
                       <option key={s} value={s}>{label(s)}</option>
                     ))}
@@ -127,7 +147,12 @@ export default function IncidentDetail() {
                 <Field label="Penanggung jawab">
                   <Select
                     value={data.assigneeId || ''}
-                    onChange={(e) => patch({ assigneeId: e.target.value || null })}
+                    onChange={(e) =>
+                      patch({ assigneeId: e.target.value || null }, {
+                        judul: 'Tugaskan penanganan insiden?',
+                        pesan: 'Penanggung jawab yang dipilih akan menerima notifikasi penugasan.',
+                      })
+                    }
                     disabled={busy}
                   >
                     <option value="">Belum ditugaskan</option>

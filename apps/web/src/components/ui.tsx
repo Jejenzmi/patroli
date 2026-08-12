@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Inbox, Loader2, ChevronRight } from 'lucide-react';
 import { initials, label, STATUS_TONE, SEVERITY_TONE } from '../lib/format';
+import { confirm as confirmDialog } from './confirm';
 
 /* ── Panel ── */
 
@@ -391,6 +392,10 @@ export function PageHead({
   );
 }
 
+/**
+ * Pembungkus dialog konfirmasi berbasis prop.
+ * Tampilannya memakai dialog beranimasi terpusat di `confirm.tsx`.
+ */
 export function Confirm({
   open,
   onClose,
@@ -408,29 +413,23 @@ export function Confirm({
   danger?: boolean;
   confirmLabel?: string;
 }) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={title}
-      footer={
-        <>
-          <button className="btn-ghost" onClick={onClose}>
-            Batal
-          </button>
-          <button
-            className={danger ? 'btn-danger' : 'btn-primary'}
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </>
-      }
-    >
-      <p className="text-sm text-muted leading-relaxed">{message}</p>
-    </Modal>
-  );
+  const seen = React.useRef(false);
+  React.useEffect(() => {
+    if (!open) {
+      seen.current = false;
+      return;
+    }
+    if (seen.current) return;
+    seen.current = true;
+    confirmDialog({
+      title,
+      message,
+      confirmLabel,
+      tone: danger ? 'danger' : 'warn',
+    }).then((ok) => {
+      onClose();
+      if (ok) onConfirm();
+    });
+  }, [open]);
+  return null;
 }

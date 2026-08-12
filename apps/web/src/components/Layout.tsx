@@ -10,6 +10,7 @@ import {
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
 import { Avatar } from './ui';
+import { ConfirmHost, ask } from './confirm';
 import { dt, ago } from '../lib/format';
 
 interface NavItem {
@@ -338,7 +339,9 @@ export default function Layout() {
               </div>
             </button>
             <button
-              onClick={logout}
+              onClick={async () => {
+                if (await ask.logout()) logout();
+              }}
               title="Keluar"
               className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-panel2/60 text-muted hover:text-danger hover:border-danger/40 transition"
             >
@@ -355,6 +358,7 @@ export default function Layout() {
       </div>
 
       <Toasts />
+      <ConfirmHost />
     </div>
   );
 }

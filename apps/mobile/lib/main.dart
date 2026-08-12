@@ -7,7 +7,9 @@ import 'core/theme.dart';
 import 'blocs/auth_bloc.dart';
 import 'blocs/duty_bloc.dart';
 import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/shell.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +18,7 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
     systemNavigationBarColor: P.abyss,
+    systemNavigationBarIconBrightness: Brightness.light,
   ));
   runApp(const PatroliApp());
 }
@@ -40,60 +43,73 @@ class PatroliApp extends StatelessWidget {
   }
 }
 
-class _Gate extends StatelessWidget {
+/// Alur pembuka: splash → (pengenalan) → masuk → beranda.
+class _Gate extends StatefulWidget {
   const _Gate();
 
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        switch (state.status) {
-          case AuthStatus.authenticated:
-            return const ShellScreen();
-          case AuthStatus.unknown:
-            return const _Splash();
-          default:
-            return const LoginScreen();
-        }
-      },
-    );
-  }
+  State<_Gate> createState() => _GateState();
 }
 
-class _Splash extends StatelessWidget {
-  const _Splash();
+class _GateState extends State<_Gate> {
+  bool _splashSelesai = false;
+  bool? _perluOnboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _mulai();
+  }
+
+  Future<void> _mulai() async {
+    final sudah = await OnboardingScreen.sudahDilihat();
+    // Splash tetap ditahan sejenak agar animasi pembuka terlihat utuh.
+    await Future.delayed(const Duration(milliseconds: 2200));
+    if (!mounted) return;
+    setState(() {
+      _perluOnboarding = !sudah;
+      _splashSelesai = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 76,
-              width: 76,
-              decoration: BoxDecoration(
-                color: P.amber.withOpacity(.12),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: P.amber.withOpacity(.35)),
-              ),
-              child: const Icon(Icons.shield_outlined, color: P.amber, size: 36),
-            ),
-            const SizedBox(height: 18),
-            const Text('PATROLI',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 6)),
-            const SizedBox(height: 6),
-            const Kicker('Security Field App'),
-            const SizedBox(height: 28),
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: P.amber),
-            ),
-          ],
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: SlideTransition(
+          position: Tween(begin: const Offset(0, .03), end: Offset.zero).animate(anim),
+          child: child,
         ),
       ),
+      child: _isi(),
+    );
+  }
+
+  Widget _isi() {
+    if (!_splashSelesai) return const SplashScreen(key: ValueKey('splash'));
+
+    if (_perluOnboarding == true) {
+      return OnboardingScreen(
+        key: const ValueKey('onboarding'),
+        onDone: () => setState(() => _perluOnboarding = false),
+      );
+    }
+
+    return BlocBuilder<AuthBloc, AuthState>(
+      key: const ValueKey('gate'),
+      builder: (context, state) {
+        switch (state.status) {
+          case AuthStatus.authenticated:
+            return const ShellScreen(key: ValueKey('shell'));
+          case AuthStatus.unknown:
+            return const SplashScreen(key: ValueKey('splash-wait'));
+          default:
+            return const LoginScreen(key: ValueKey('login'));
+        }
+      },
     );
   }
 }

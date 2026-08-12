@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Avatar, Loading, Empty, Modal, Field, Select, Textarea, Chip } from '../components/ui';
 import { dt, d, ago } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Handovers() {
   const qc = useQueryClient();
@@ -22,6 +23,7 @@ export default function Handovers() {
 
   const save = async () => {
     if (!form.siteId || !form.toGuardId || !form.situation) return toast.err('Site, penerima, dan uraian situasi wajib diisi');
+    if (!(await ask.create('berita acara serah terima', 'Penerima shift akan langsung menerima notifikasi.'))) return;
     try {
       await api.post('/frontdesk/handovers', form);
       toast.ok('Berita acara serah terima terkirim');
@@ -108,6 +110,7 @@ export default function Handovers() {
                   <button
                     className="btn-primary btn-sm"
                     onClick={async () => {
+                      if (!(await ask.action('Konfirmasi serah terima?', 'Anda menyatakan telah menerima situasi, pekerjaan tertunda, dan peralatan sebagaimana tercatat.', 'Ya, saya terima'))) return;
                       await api.post(`/frontdesk/handovers/${h.id}/ack`, {});
                       toast.ok('Serah terima dikonfirmasi');
                       qc.invalidateQueries({ queryKey: ['handovers'] });

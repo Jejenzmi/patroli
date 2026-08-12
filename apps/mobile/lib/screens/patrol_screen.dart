@@ -12,6 +12,8 @@ import '../core/geo.dart';
 import '../core/theme.dart';
 import '../blocs/duty_bloc.dart';
 import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/ui.dart';
 import 'scan_screen.dart';
 
 class PatrolScreen extends StatelessWidget {
@@ -20,19 +22,28 @@ class PatrolScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Patroli'),
-        actions: [
-          IconButton(
-            onPressed: () => context.read<DutyBloc>().add(DutyRefreshed()),
-            icon: const Icon(Icons.refresh, size: 20),
-          ),
-        ],
-      ),
       body: BlocBuilder<DutyBloc, DutyState>(
         builder: (context, state) {
-          if (state.session == null) return _RouteChooser(state: state);
-          return _ActivePatrol(session: state.session!, busy: state.loading);
+          return Column(
+            children: [
+              GradientHeader(
+                title: 'Patroli',
+                subtitle: state.session == null
+                    ? 'Pilih rute untuk memulai putaran'
+                    : 'Putaran sedang berjalan — pindai setiap titik',
+                accent: state.session == null ? P.amber : P.cyan,
+                trailing: IconButton(
+                  onPressed: () => context.read<DutyBloc>().add(DutyRefreshed()),
+                  icon: const Icon(Icons.refresh, size: 20, color: P.muted),
+                ),
+              ),
+              Expanded(
+                child: state.session == null
+                    ? _RouteChooser(state: state)
+                    : _ActivePatrol(session: state.session!, busy: state.loading),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -140,9 +151,23 @@ class _RouteChooser extends StatelessWidget {
                           child: FilledButton.icon(
                             onPressed: state.loading
                                 ? null
-                                : () => context
-                                    .read<DutyBloc>()
-                                    .add(DutyPatrolStarted(s.route!.id, scheduleId: s.id)),
+                                : () async {
+                                    final ok = await askConfirm(
+                                      context,
+                                      title: 'Mulai putaran patroli?',
+                                      message:
+                                          'Waktu mulai dicatat sekarang. Seluruh titik pada rute ini harus dipindai sebelum putaran ditutup.',
+                                      detail:
+                                          '${s.route!.name} · ${s.route!.checkpoints.length} titik · target ${s.route!.expectedDurationMin} menit',
+                                      confirmLabel: 'Ya, mulai',
+                                      tone: DialogTone.info,
+                                    );
+                                    if (ok && context.mounted) {
+                                      context
+                                          .read<DutyBloc>()
+                                          .add(DutyPatrolStarted(s.route!.id, scheduleId: s.id));
+                                    }
+                                  },
                             icon: const Icon(Icons.play_arrow_rounded),
                             label: const Text('MULAI PATROLI'),
                           ),
@@ -307,20 +332,18 @@ class _ActivePatrol extends StatelessWidget {
                     onPressed: busy
                         ? null
                         : () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (c) => AlertDialog(
-                                title: const Text('Akhiri patroli?'),
-                                content: Text(done < cps.length
-                                    ? 'Masih ada ${cps.length - done} titik yang belum dipindai. Titik tersebut akan tercatat terlewat.'
-                                    : 'Seluruh titik sudah dipindai. Akhiri putaran patroli ini?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-                                  FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Akhiri')),
-                                ],
-                              ),
+                            final kurang = cps.length - done;
+                            final ok = await askConfirm(
+                              context,
+                              title: 'Akhiri putaran patroli?',
+                              message: kurang > 0
+                                  ? 'Masih ada $kurang titik yang belum dipindai dan akan tercatat sebagai terlewat pada laporan kepatuhan.'
+                                  : 'Seluruh titik sudah dipindai. Putaran akan ditutup dan hasilnya dikirim ke pusat komando.',
+                              detail: '$done dari ${cps.length} titik terpindai',
+                              confirmLabel: 'Ya, akhiri',
+                              tone: kurang > 0 ? DialogTone.warn : DialogTone.info,
                             );
-                            if (ok == true && context.mounted) {
+                            if (ok && context.mounted) {
                               context.read<DutyBloc>().add(DutyPatrolFinished(session.id));
                             }
                           },
@@ -509,6 +532,18 @@ class _CheckpointTile extends StatelessWidget {
                       }
                       return;
                     }
+                    final setuju = await askConfirm(
+                      sheetCtx,
+                      title: issue ? 'Kirim temuan di titik ini?' : 'Verifikasi titik lewat GPS?',
+                      message: issue
+                          ? 'Temuan akan diteruskan ke supervisor sebagai pemberitahuan langsung.'
+                          : 'Titik ditandai terperiksa memakai koordinat GPS Anda saat ini.',
+                      detail: cp.name,
+                      confirmLabel: 'Ya, kirim',
+                      tone: issue ? DialogTone.warn : DialogTone.save,
+                    );
+                    if (!setuju) return;
+                    if (!sheetCtx.mounted) return;
                     Navigator.pop(sheetCtx);
                     context.read<DutyBloc>().add(DutyCheckpointScanned(
                           sessionId: sessionId,

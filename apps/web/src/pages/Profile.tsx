@@ -4,6 +4,7 @@ import { UserCog, KeyRound, Smartphone, LogOut, ShieldCheck } from 'lucide-react
 import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Avatar, Field, Loading } from '../components/ui';
+import { ask } from '../components/confirm';
 import { d, dt, label } from '../lib/format';
 
 export default function Profile() {
@@ -16,6 +17,7 @@ export default function Profile() {
   const changePw = async () => {
     if (pw.newPassword.length < 6) return toast.err('Kata sandi baru minimal 6 karakter');
     if (pw.newPassword !== pw.confirm) return toast.err('Konfirmasi kata sandi tidak cocok');
+    if (!(await ask.save('kata sandi akun Anda'))) return;
     setBusy(true);
     try {
       await api.post('/auth/change-password', { oldPassword: pw.oldPassword, newPassword: pw.newPassword });
@@ -61,7 +63,12 @@ export default function Profile() {
             ))}
           </div>
 
-          <button className="btn-danger mt-6 w-full" onClick={logout}>
+          <button
+            className="btn-danger mt-6 w-full"
+            onClick={async () => {
+              if (await ask.logout()) logout();
+            }}
+          >
             <LogOut size={14} /> Keluar dari Sesi
           </button>
         </Panel>

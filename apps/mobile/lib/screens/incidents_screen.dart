@@ -10,6 +10,8 @@ import '../core/geo.dart';
 import '../core/theme.dart';
 import '../blocs/duty_bloc.dart';
 import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/ui.dart';
 
 const kCategories = {
   'ORANG_MENCURIGAKAN': 'Orang Mencurigakan',
@@ -70,7 +72,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Laporan Insiden')),
+      appBar: null,
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: P.amber,
         foregroundColor: Colors.black,
@@ -84,7 +86,31 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         icon: const Icon(Icons.add_alert_outlined),
         label: const Text('LAPOR', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
-      body: RefreshIndicator(
+      body: Column(children: [
+        GradientHeader(
+          title: 'Laporan Insiden',
+          subtitle: 'Kejadian yang Anda laporkan dari lapangan',
+          accent: P.danger,
+          bottom: Row(children: [
+            StatTile(icon: Icons.description_outlined, label: 'Total', value: '${_items.length}', color: P.cyan),
+            const SizedBox(width: 10),
+            StatTile(
+              icon: Icons.priority_high,
+              label: 'Kritis / tinggi',
+              value: '${_items.where((i) => i.severity == 'CRITICAL' || i.severity == 'HIGH').length}',
+              color: P.danger,
+            ),
+            const SizedBox(width: 10),
+            StatTile(
+              icon: Icons.pending_actions,
+              label: 'Belum selesai',
+              value: '${_items.where((i) => i.status != 'RESOLVED' && i.status != 'CLOSED').length}',
+              color: P.amber,
+            ),
+          ]),
+        ),
+        Expanded(
+          child: RefreshIndicator(
         color: P.amber,
         backgroundColor: P.panel,
         onRefresh: _load,
@@ -99,15 +125,10 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                   ])
                 : _items.isEmpty
                     ? ListView(children: const [
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 100),
-                          child: Center(
-                            child: Column(children: [
-                              Icon(Icons.verified_outlined, size: 38, color: P.emerald),
-                              SizedBox(height: 12),
-                              Text('Belum ada laporan insiden', style: TextStyle(color: P.muted)),
-                            ]),
-                          ),
+                        EmptyState(
+                          icon: Icons.verified_outlined,
+                          title: 'Belum ada laporan insiden',
+                          hint: 'Ketuk tombol LAPOR untuk mengirim kejadian dari lapangan.',
                         )
                       ])
                     : ListView.separated(
@@ -161,7 +182,9 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                           );
                         },
                       ),
-      ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -369,6 +392,15 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
       );
       return;
     }
+    final setuju = await askConfirm(
+      context,
+      title: 'Kirim laporan insiden?',
+      message: 'Laporan langsung diteruskan ke pusat komando dan supervisor, serta tenggat penanganan mulai dihitung.',
+      detail: '${kSeverity[_severity]} — ${_title.text.trim()}',
+      confirmLabel: 'Ya, kirim',
+      tone: DialogTone.danger,
+    );
+    if (!setuju) return;
     setState(() => _saving = true);
     double? lat, lng;
     try {
@@ -390,6 +422,16 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
         'lng': lng,
         'mediaUrls': _photos,
       });
+      if (mounted) {
+        await showSuccess(context,
+            title: 'Laporan terkirim',
+            message: 'Pusat komando sudah menerima laporan Anda.');
+      }
+      if (mounted) {
+        await showSuccess(context,
+            title: 'Laporan terkirim',
+            message: 'Pusat komando sudah menerima laporan Anda.');
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {

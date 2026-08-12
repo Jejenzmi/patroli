@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { toast } from '../lib/store';
 import { Panel, PageHead, Table, Loading, Empty, Modal, Field, Select, SearchBox, Stat, Chip } from '../components/ui';
 import { dt, t, num } from '../lib/format';
+import { ask } from '../components/confirm';
 
 export default function Vehicles() {
   const qc = useQueryClient();
@@ -21,6 +22,7 @@ export default function Vehicles() {
 
   const save = async () => {
     if (!form.siteId || !form.plate) return toast.err('Site dan nomor polisi wajib diisi');
+    if (!(await ask.create('catatan kendaraan', String(form.plate).toUpperCase()))) return;
     try {
       await api.post('/frontdesk/vehicles', form);
       toast.ok('Kendaraan tercatat masuk');
@@ -86,6 +88,7 @@ export default function Vehicles() {
                     <button
                       className="btn-ghost btn-sm"
                       onClick={async () => {
+                        if (!(await ask.action('Catat kendaraan keluar?', 'Waktu keluar dicatat sekarang untuk kendaraan ini.', 'Ya, catat keluar', v.plate))) return;
                         await api.post(`/frontdesk/vehicles/${v.id}/out`, {});
                         toast.ok('Kendaraan keluar');
                         qc.invalidateQueries({ queryKey: ['vehicles'] });

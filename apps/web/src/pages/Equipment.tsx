@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Table, Chip, Loading, Empty, Modal, Field, Select, Confirm, Stat } from '../components/ui';
 import { num } from '../lib/format';
+import { ask } from '../components/confirm';
 
 const STATUS_ID: Record<string, string> = {
   AVAILABLE: 'Tersedia',
@@ -32,6 +33,7 @@ export default function Equipment() {
 
   const save = async () => {
     if (!form.siteId || !form.code || !form.name) return toast.err('Site, kode, dan nama wajib diisi');
+    if (!(await (form.id ? ask.save(`inventaris ${form.name}`) : ask.create('inventaris', form.name)))) return;
     try {
       if (form.id) await api.put(`/master/equipment/${form.id}`, form);
       else await api.post('/master/equipment', form);
