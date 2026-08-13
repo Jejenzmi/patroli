@@ -100,7 +100,8 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         // menutupi kartu dan tidak bertumpuk dengan tombol pindai.
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-          child: SizedBox(
+          child: IsiTerpusat(
+            child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: P.danger, foregroundColor: Colors.white),
@@ -113,6 +114,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
               },
               icon: const Icon(Icons.add_alert_outlined, size: 18),
               label: const Text('LAPOR KEJADIAN BARU'),
+            ),
             ),
           ),
         ),
@@ -145,7 +147,8 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                         itemBuilder: (_, i) {
                           final it = _items[i];
                           final c = severityColor(it.severity);
-                          return GlassCard(
+                          return IsiTerpusat(
+                            child: GlassCard(
                             padding: const EdgeInsets.all(16),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,6 +189,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                                 ),
                               ],
                             ),
+                          ),
                           );
                         },
                       ),

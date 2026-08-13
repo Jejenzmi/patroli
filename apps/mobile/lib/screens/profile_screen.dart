@@ -51,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onRefresh: _load,
         child: ListView(
           padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset(context)),
-          children: [
+          children: [IsiTerpusat(child: Column(children: [
             GlassCard(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -223,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text('PATROLI Field App · v1.0.0',
                   style: TextStyle(color: P.muted, fontSize: 11)),
             ),
-          ],
+          ]))],
         ),
       ),
     );

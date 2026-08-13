@@ -31,6 +31,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       curve: const Interval(.35, 1, curve: Curves.easeOut),
     );
 
+    // Diameter radar mengikuti ruang layar agar tetap utuh di layar kecil.
+    final ukuran = MediaQuery.sizeOf(context);
+    final radar = [210.0, ukuran.width * .58, ukuran.height * .26]
+        .reduce((a, b) => a < b ? a : b);
+
     return Scaffold(
       backgroundColor: P.voidBg,
       // fit: expand — tanpa ini Stack menyusut selebar anak terlebarnya,
@@ -77,8 +82,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 210,
-                height: 210,
+                width: radar,
+                height: radar,
                 child: AnimatedBuilder(
                   animation: Listenable.merge([_radar, _intro]),
                   builder: (_, __) => Stack(
@@ -87,8 +92,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       // Lingkaran radar
                       for (var i = 1; i <= 3; i++)
                         Container(
-                          width: 70.0 * i,
-                          height: 70.0 * i,
+                          width: radar / 3 * i,
+                          height: radar / 3 * i,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: P.amber.withOpacity(.10)),
@@ -98,8 +103,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       Transform.rotate(
                         angle: _radar.value * 2 * pi,
                         child: Container(
-                          width: 210,
-                          height: 210,
+                          width: radar,
+                          height: radar,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: SweepGradient(
@@ -117,17 +122,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       Transform.scale(
                         scale: logoScale.value,
                         child: Container(
-                          width: 92,
-                          height: 92,
+                          width: radar * .44,
+                          height: radar * .44,
                           decoration: BoxDecoration(
                             color: P.abyss,
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(radar * .143),
                             border: Border.all(color: P.amber.withOpacity(.45), width: 1.5),
                             boxShadow: [
                               BoxShadow(color: P.amber.withOpacity(.25), blurRadius: 40, spreadRadius: -4),
                             ],
                           ),
-                          child: const Icon(Icons.shield_outlined, color: P.amber, size: 44),
+                          child: Icon(Icons.shield_outlined, color: P.amber, size: radar * .21),
                         ),
                       ),
                     ],
@@ -139,9 +144,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 opacity: textFade,
                 child: const Column(
                   children: [
-                    Text('PATROLI',
-                        style: TextStyle(
-                            fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 9, height: 1)),
+                    FittedBox(
+                      child: Text('PATROLI',
+                          style: TextStyle(
+                              fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 9, height: 1)),
+                    ),
                     SizedBox(height: 10),
                     Kicker('Security Field Operations'),
                   ],

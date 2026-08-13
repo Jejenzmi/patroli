@@ -111,13 +111,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (_, i) {
                   final p = _pages[i];
-                  return Padding(
+                  return LayoutBuilder(
+                    builder: (context, ruang) {
+                      // Ilustrasi menyesuaikan ruang yang tersedia sehingga
+                      // tidak meluap pada layar pendek atau sempit.
+                      final diameter = [
+                        220.0,
+                        ruang.maxWidth * .62,
+                        ruang.maxHeight * .36,
+                      ].reduce((a, b) => a < b ? a : b);
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: ruang.maxHeight),
+                          child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _Illustration(icon: p.icon, color: p.color),
-                        const SizedBox(height: 44),
+                        _Illustration(icon: p.icon, color: p.color, diameter: diameter),
+                        SizedBox(height: diameter * .2),
                         Text(
                           p.title,
                           textAlign: TextAlign.center,
@@ -131,6 +144,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ],
                     ),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -193,7 +210,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _Illustration extends StatefulWidget {
   final IconData icon;
   final Color color;
-  const _Illustration({required this.icon, required this.color});
+  final double diameter;
+  const _Illustration({required this.icon, required this.color, this.diameter = 220});
 
   @override
   State<_Illustration> createState() => _IllustrationState();
@@ -211,9 +229,10 @@ class _IllustrationState extends State<_Illustration> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    final d = widget.diameter;
     return SizedBox(
-      width: 220,
-      height: 220,
+      width: d,
+      height: d,
       child: AnimatedBuilder(
         animation: _c,
         builder: (_, __) => Stack(
@@ -222,15 +241,15 @@ class _IllustrationState extends State<_Illustration> with SingleTickerProviderS
             Transform.rotate(
               angle: _c.value * 2 * pi,
               child: CustomPaint(
-                size: const Size(220, 220),
+                size: Size(d, d),
                 painter: _RingPainter(widget.color),
               ),
             ),
             Transform.rotate(
               angle: -_c.value * 2 * pi,
               child: Container(
-                width: 148,
-                height: 148,
+                width: d * .67,
+                height: d * .67,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: widget.color.withOpacity(.16)),
@@ -238,17 +257,17 @@ class _IllustrationState extends State<_Illustration> with SingleTickerProviderS
               ),
             ),
             Container(
-              width: 104,
-              height: 104,
+              width: d * .47,
+              height: d * .47,
               decoration: BoxDecoration(
                 color: widget.color.withOpacity(.13),
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(d * .155),
                 border: Border.all(color: widget.color.withOpacity(.4)),
                 boxShadow: [
                   BoxShadow(color: widget.color.withOpacity(.22), blurRadius: 46, spreadRadius: -6),
                 ],
               ),
-              child: Icon(widget.icon, color: widget.color, size: 46),
+              child: Icon(widget.icon, color: widget.color, size: d * .21),
             ),
           ],
         ),

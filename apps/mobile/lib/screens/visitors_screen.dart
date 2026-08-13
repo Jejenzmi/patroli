@@ -93,7 +93,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                 children: [
                   for (final f in ['SEMUA', 'INSIDE', 'CHECKED_OUT'])
                     Padding(
@@ -120,6 +122,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                       ),
                     ),
                 ],
+                ),
               ),
             ),
             if (_loading)

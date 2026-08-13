@@ -41,7 +41,8 @@ class HomeScreen extends StatelessWidget {
                 _Header(me: me, state: state),
                 Padding(
                   padding: EdgeInsets.fromLTRB(16, 18, 16, bottomInset(context)),
-                  child: Column(
+                  child: IsiTerpusat(
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       FadeInUp(index: 0, child: _AttendanceCard(state: state)),
@@ -58,6 +59,7 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 18),
                       FadeInUp(index: 5, child: _PanicCard(state: state)),
                     ],
+                    ),
                   ),
                 ),
               ],
@@ -102,7 +104,8 @@ class _Header extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
         border: const Border(bottom: BorderSide(color: P.line)),
       ),
-      child: Column(
+      child: IsiTerpusat(
+        child: Column(
         children: [
           Row(
             children: [
@@ -171,6 +174,7 @@ class _Header extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
     );
   }
@@ -210,11 +214,12 @@ class _QuickActions extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
         itemCount: items.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          // Layar sempit memakai tiga kolom agar label tidak terpotong.
+          crossAxisCount: layarSempit(context) ? 3 : 4,
           mainAxisSpacing: 16,
           crossAxisSpacing: 6,
-          mainAxisExtent: 96,
+          mainAxisExtent: 100,
         ),
         itemBuilder: (_, i) => QuickAction(
           icon: items[i].$1,
@@ -565,7 +570,7 @@ class _AnnouncementStripState extends State<_AnnouncementStrip> {
           ),
         ),
         SizedBox(
-          height: 118,
+          height: 132,
           child: PageView.builder(
             controller: PageController(viewportFraction: .92),
             itemCount: _items.length,

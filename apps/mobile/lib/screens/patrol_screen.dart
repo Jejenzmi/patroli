@@ -65,7 +65,7 @@ class _RouteChooser extends StatelessWidget {
       onRefresh: () async => context.read<DutyBloc>().add(DutyRefreshed()),
       child: ListView(
         padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset(context)),
-        children: [
+        children: [IsiTerpusat(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           GlassCard(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -175,7 +175,7 @@ class _RouteChooser extends StatelessWidget {
                     ),
                   ),
                 )),
-        ],
+        ]))],
       ),
     );
   }

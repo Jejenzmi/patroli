@@ -15,7 +15,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   // Tampilan tepi-ke-tepi: latar aplikasi menembus bilah status dan navigasi.
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // Ponsel dikunci potret; tablet dibiarkan bebas agar nyaman dipakai mendatar.
+  final layar = WidgetsBinding.instance.platformDispatcher.views.first;
+  final sisiTerpendek = layar.physicalSize.shortestSide / layar.devicePixelRatio;
+  await SystemChrome.setPreferredOrientations(
+    sisiTerpendek >= 600
+        ? DeviceOrientation.values
+        : [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
+  );
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -41,6 +48,13 @@ class PatroliApp extends StatelessWidget {
         title: 'PATROLI',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
+        // Pengaturan ukuran huruf sistem dibatasi agar tata letak tetap utuh
+        // pada perangkat yang menyetel huruf sangat besar.
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.25,
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const _Gate(),
       ),
     );

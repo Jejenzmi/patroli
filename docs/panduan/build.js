@@ -730,7 +730,6 @@ const daftarIsi = bab
   })
   .join('');
 
-const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
 const html = `<!doctype html>
 <html lang="id">
@@ -761,9 +760,9 @@ const html = `<!doctype html>
   </div>
   <div class="cover-meta">
     <div><b>Versi 1.0</b>Dokumen panduan pengguna</div>
-    <div><b>${tanggal}</b>Tanggal terbit</div>
     <div><b>patroli.gokar.id</b>Alamat sistem</div>
     <div><b>Web &amp; Android</b>Cakupan panduan</div>
+    <div><b>Semua peran</b>Anggota, supervisor, admin, klien</div>
   </div>
 </section>
 

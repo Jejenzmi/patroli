@@ -32,7 +32,8 @@ class GradientHeader extends StatelessWidget {
         ),
         border: const Border(bottom: BorderSide(color: P.line)),
       ),
-      child: Column(
+      child: IsiTerpusat(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -64,6 +65,7 @@ class GradientHeader extends StatelessWidget {
           ),
           if (bottom != null) ...[const SizedBox(height: 16), bottom!],
         ],
+        ),
       ),
     );
   }

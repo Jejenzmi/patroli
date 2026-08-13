@@ -61,7 +61,8 @@ class ServicesScreen extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(16, 20, 16, bottomInset(context)),
-            child: Column(
+            child: IsiTerpusat(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final entry in kelompok.entries) ...[
@@ -75,6 +76,7 @@ class ServicesScreen extends StatelessWidget {
                   const SizedBox(height: 22),
                 ],
               ],
+              ),
             ),
           ),
         ],

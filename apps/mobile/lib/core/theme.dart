@@ -19,6 +19,32 @@ class P {
 }
 
 
+
+/// Lebar isi maksimal. Pada tablet, isi dipusatkan agar baris teks tidak
+/// terlalu panjang dan tombol tidak melebar berlebihan.
+const double kMaxContentWidth = 620;
+
+/// Layar kecil (mis. 320–359 dp) memerlukan kisi dan jarak yang lebih rapat.
+bool layarSempit(BuildContext context) => MediaQuery.sizeOf(context).width < 360;
+
+/// Perangkat berlayar lebar (tablet).
+bool layarLebar(BuildContext context) => MediaQuery.sizeOf(context).shortestSide >= 600;
+
+/// Membatasi lebar isi dan memusatkannya pada layar lebar.
+class IsiTerpusat extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  const IsiTerpusat({super.key, required this.child, this.maxWidth = kMaxContentWidth});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: child,
+        ),
+      );
+}
+
 /// Tinggi bilah navigasi bawah pada kerangka utama.
 const double kNavBarHeight = 74;
 
