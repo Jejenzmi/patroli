@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         builder: (context, state) {
           final busy = state.status == AuthStatus.loading;
           return Stack(
+            fit: StackFit.expand,
             children: [
               // Latar: cahaya lembut yang tidak menyisakan sudut tajam
               Positioned(
@@ -82,6 +83,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               SafeArea(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+                  child: Center(
+                    child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -187,6 +191,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ),
                     ],
+                  ),
+                    ),
                   ),
                 ),
               ),

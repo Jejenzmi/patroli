@@ -33,32 +33,47 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     return Scaffold(
       backgroundColor: P.voidBg,
+      // fit: expand — tanpa ini Stack menyusut selebar anak terlebarnya,
+      // sehingga isi layar pembuka menempel di sisi kiri pada sebagian perangkat.
       body: Stack(
+        fit: StackFit.expand,
         alignment: Alignment.center,
         children: [
-          // Cahaya latar
+          // Cahaya latar lembut — memakai gradasi agar tidak terlihat
+          // sebagai piringan pekat pada layar besar.
           Positioned(
-            top: -100,
+            top: -150,
             child: Container(
-              width: 380,
-              height: 380,
+              width: 420,
+              height: 420,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: P.amber.withOpacity(.07),
+                gradient: RadialGradient(
+                  colors: [P.amber.withOpacity(.13), P.amber.withOpacity(.03), Colors.transparent],
+                  stops: const [0, .5, 1],
+                ),
               ),
             ),
           ),
           Positioned(
-            bottom: -120,
-            right: -80,
+            bottom: -170,
+            right: -110,
             child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: P.cyan.withOpacity(.06)),
+              width: 360,
+              height: 360,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [P.cyan.withOpacity(.10), P.cyan.withOpacity(.025), Colors.transparent],
+                  stops: const [0, .5, 1],
+                ),
+              ),
             ),
           ),
 
-          Column(
+          Center(
+            child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
@@ -133,6 +148,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 ),
               ),
             ],
+            ),
           ),
 
           Positioned(
