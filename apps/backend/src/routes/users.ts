@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND, ADMIN_ONLY } from '../middleware/auth';
-import { parsePaging } from '../lib/scope';
+import { parsePaging, allowedSiteIds, isCommand } from '../lib/scope';
 import { audit } from '../lib/notify';
 
 const router = Router();
@@ -15,6 +15,9 @@ router.get('/', allow(...COMMAND, 'CLIENT'), async (req, res) => {
   if (req.query.role) where.role = String(req.query.role);
   if (req.query.status) where.status = String(req.query.status);
   if (req.query.siteId) where.homeSiteId = String(req.query.siteId);
+  // Klien hanya melihat personel yang ditempatkan di site miliknya.
+  const bolehIds = await allowedSiteIds(req);
+  if (bolehIds !== null) where.homeSiteId = { in: bolehIds.length ? bolehIds : ['-tidak-boleh-'] };
   if (req.query.q)
     where.OR = [
       { name: { contains: String(req.query.q), mode: 'insensitive' } },
@@ -115,6 +118,17 @@ router.get('/:id/performance', async (req, res) => {
   const isSelf = guardId === req.user!.sub;
   if (!isSelf && !['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'].includes(req.user!.role))
     return res.status(403).json({ message: 'Hak akses tidak mencukupi' });
+
+  if (!isSelf && !isCommand(req)) {
+    // Klien hanya boleh menilai personel yang ditempatkan di site miliknya.
+    const bolehIds = (await allowedSiteIds(req)) ?? [];
+    const target = await prisma.user.findUnique({
+      where: { id: guardId },
+      select: { homeSiteId: true },
+    });
+    if (!target?.homeSiteId || !bolehIds.includes(target.homeSiteId))
+      return res.status(403).json({ message: 'Personel ini di luar cakupan akses Anda' });
+  }
   const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
   const [sessions, attendance, incidents, user] = await Promise.all([
     prisma.patrolSession.findMany({

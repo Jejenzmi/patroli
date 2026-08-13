@@ -6,6 +6,7 @@ import { dateKey, shiftStartAt, dayjs, TZ, startOfDay, endOfDay } from '../lib/t
 import { haversineMeters, WS_EVENTS } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyUsers } from '../lib/notify';
+import { withSiteScope, bolehSite } from '../lib/scope';
 
 const router = Router();
 router.use(auth);
@@ -17,11 +18,11 @@ router.get('/', async (req, res) => {
   const to = req.query.to
     ? dateKey(String(req.query.to))
     : dateKey(dayjs().add(6, 'day').toISOString());
-  const where: any = { date: { gte: from, lte: to } };
+  let where: any = { date: { gte: from, lte: to } };
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.query.guardId) where.guardId = String(req.query.guardId);
   if (req.user!.role === 'GUARD') where.guardId = req.user!.sub;
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  if (req.user!.role === 'CLIENT') where = await withSiteScope(req, where);
 
   const rows = await prisma.schedule.findMany({
     where,
@@ -138,7 +139,7 @@ const checkInSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-router.post('/attendance/check-in', async (req, res) => {
+router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const p = checkInSchema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Lokasi dan site wajib dikirim' });
   const { scheduleId, siteId, lat, lng, photoUrl, notes } = p.data;
@@ -146,6 +147,8 @@ router.post('/attendance/check-in', async (req, res) => {
 
   const site = await prisma.site.findUnique({ where: { id: siteId } });
   if (!site) return res.status(404).json({ message: 'Site tidak ditemukan' });
+  if (!(await bolehSite(req, siteId)))
+    return res.status(403).json({ message: 'Anda tidak ditempatkan pada site ini' });
 
   const distance = Math.round(haversineMeters(lat, lng, site.lat, site.lng));
   if (distance > site.radiusM)
@@ -196,7 +199,7 @@ router.post('/attendance/check-in', async (req, res) => {
   res.status(201).json({ ...att, distanceM: distance });
 });
 
-router.post('/attendance/check-out', async (req, res) => {
+router.post('/attendance/check-out', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     lat: z.number(),
     lng: z.number(),
@@ -246,11 +249,11 @@ router.post('/attendance/check-out', async (req, res) => {
 });
 
 router.get('/attendance', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.query.guardId) where.guardId = String(req.query.guardId);
   if (req.user!.role === 'GUARD') where.guardId = req.user!.sub;
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  if (req.user!.role === 'CLIENT') where = await withSiteScope(req, where);
   if (req.query.from || req.query.to) {
     where.checkInAt = {};
     if (req.query.from) where.checkInAt.gte = startOfDay(new Date(String(req.query.from)));

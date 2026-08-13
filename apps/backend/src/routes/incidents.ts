@@ -5,7 +5,7 @@ import { auth, allow, COMMAND } from '../middleware/auth';
 import { SLA_HOURS, WS_EVENTS, type IncidentSeverity } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyCommand, notifyUsers } from '../lib/notify';
-import { parsePaging } from '../lib/scope';
+import { parsePaging, bolehSite, isCommand } from '../lib/scope';
 import { getPresence } from '../lib/redis';
 
 const router = Router();
@@ -68,6 +68,10 @@ router.get('/:id', async (req, res) => {
     },
   });
   if (!inc) return res.status(404).json({ message: 'Insiden tidak ditemukan' });
+  if (req.user!.role === 'GUARD' && inc.reporterId !== req.user!.sub && inc.assigneeId !== req.user!.sub)
+    return res.status(403).json({ message: 'Laporan ini bukan milik Anda' });
+  if (!isCommand(req) && !(await bolehSite(req, inc.siteId)))
+    return res.status(403).json({ message: 'Insiden ini di luar cakupan akses Anda' });
   res.json(inc);
 });
 
@@ -85,7 +89,7 @@ const incidentSchema = z.object({
   mediaUrls: z.array(z.string()).optional(),
 });
 
-router.post('/', async (req, res) => {
+router.post('/', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const p = incidentSchema.safeParse(req.body);
   if (!p.success)
     return res.status(400).json({ message: 'Laporan insiden belum lengkap', issues: p.error.issues });
@@ -188,7 +192,15 @@ router.put('/:id', allow(...COMMAND), async (req, res) => {
   res.json(inc);
 });
 
-router.post('/:id/updates', async (req, res) => {
+router.post('/:id/updates', allow(...COMMAND, 'GUARD'), async (req, res) => {
+  if (!isCommand(req)) {
+    const inc = await prisma.incident.findUnique({
+      where: { id: req.params.id },
+      select: { reporterId: true, assigneeId: true },
+    });
+    if (!inc || (inc.reporterId !== req.user!.sub && inc.assigneeId !== req.user!.sub))
+      return res.status(403).json({ message: 'Laporan ini bukan milik Anda' });
+  }
   const schema = z.object({ note: z.string().min(1), action: z.string().optional() });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Catatan wajib diisi' });
@@ -204,7 +216,7 @@ router.post('/:id/updates', async (req, res) => {
   res.status(201).json(upd);
 });
 
-router.post('/:id/media', async (req, res) => {
+router.post('/:id/media', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({ url: z.string(), caption: z.string().optional(), mimeType: z.string().optional() });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'URL berkas wajib diisi' });
@@ -214,7 +226,7 @@ router.post('/:id/media', async (req, res) => {
 
 /* ─────────────────────────── TOMBOL DARURAT ─────────────────────────── */
 
-router.post('/panic/trigger', async (req, res) => {
+router.post('/panic/trigger', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     siteId: z.string(),
     lat: z.number().optional().nullable(),

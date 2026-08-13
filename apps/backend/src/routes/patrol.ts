@@ -6,6 +6,7 @@ import { haversineMeters, WS_EVENTS } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyCommand } from '../lib/notify';
 import { setPresence } from '../lib/redis';
+import { bolehSite, isCommand } from '../lib/scope';
 import { startOfDay, endOfDay } from '../lib/time';
 
 const router = Router();
@@ -13,7 +14,7 @@ router.use(auth);
 
 /* ─────────────────────────── SESI PATROLI ─────────────────────────── */
 
-router.post('/start', async (req, res) => {
+router.post('/start', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     routeId: z.string(),
     scheduleId: z.string().optional().nullable(),
@@ -70,7 +71,7 @@ const scanSchema = z.object({
   condition: z.enum(['NORMAL', 'ISSUE']).default('NORMAL'),
 });
 
-router.post('/:id/scan', async (req, res) => {
+router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const p = scanSchema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Data pindai tidak valid' });
 
@@ -178,7 +179,7 @@ router.post('/:id/scan', async (req, res) => {
   res.status(201).json({ scan, scannedCount, total: session.totalCheckpoints });
 });
 
-router.post('/:id/finish', async (req, res) => {
+router.post('/:id/finish', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const session = await prisma.patrolSession.findUnique({
     where: { id: req.params.id },
     include: { route: { include: { checkpoints: true } } },
@@ -299,6 +300,10 @@ router.get('/:id', async (req, res) => {
     },
   });
   if (!s) return res.status(404).json({ message: 'Sesi tidak ditemukan' });
+  if (req.user!.role === 'GUARD' && s.guardId !== req.user!.sub)
+    return res.status(403).json({ message: 'Sesi patroli ini bukan milik Anda' });
+  if (!isCommand(req) && !(await bolehSite(req, s.siteId)))
+    return res.status(403).json({ message: 'Sesi patroli ini di luar cakupan akses Anda' });
   const scannedIds = new Set(s.scans.map((x) => x.checkpointId));
   const missed = s.route.checkpoints.filter((rc) => !scannedIds.has(rc.checkpointId)).map((rc) => rc.checkpoint);
   res.json({ ...s, missedCheckpoints: missed });
@@ -306,7 +311,7 @@ router.get('/:id', async (req, res) => {
 
 /* ─────────────────────────── PELACAKAN POSISI ─────────────────────────── */
 
-router.post('/tracking/ping', async (req, res) => {
+router.post('/tracking/ping', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     lat: z.number(),
     lng: z.number(),
@@ -354,6 +359,14 @@ router.post('/tracking/ping', async (req, res) => {
 
 /** Jejak posisi satu anggota pada rentang waktu — untuk peta riwayat. */
 router.get('/tracking/history/:guardId', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  if (!isCommand(req)) {
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.guardId },
+      select: { homeSiteId: true },
+    });
+    if (!(await bolehSite(req, target?.homeSiteId)))
+      return res.status(403).json({ message: 'Personel ini di luar cakupan akses Anda' });
+  }
   const from = req.query.from ? new Date(String(req.query.from)) : startOfDay(new Date());
   const to = req.query.to ? new Date(String(req.query.to)) : new Date();
   const rows = await prisma.locationPing.findMany({

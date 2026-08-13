@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND } from '../middleware/auth';
+import { allowedSiteIds } from '../lib/scope';
 import { startOfDay, endOfDay, dayjs, TZ } from '../lib/time';
 import { cached, getPresence } from '../lib/redis';
 
 const router = Router();
 router.use(auth);
+// Seluruh analitik hanya untuk pengawas dan klien; anggota memakai aplikasi lapangan.
+router.use(allow(...COMMAND, 'CLIENT'));
 
 function range(req: any) {
   const from = req.query.from ? startOfDay(new Date(String(req.query.from))) : startOfDay(dayjs().subtract(29, 'day').toDate());
@@ -310,8 +313,12 @@ router.get('/checkpoints/missed', allow(...COMMAND, 'CLIENT'), async (req, res) 
 /** Aliran kejadian terbaru untuk panel kanan pusat komando. */
 router.get('/feed', async (req, res) => {
   const scope = clientScope(req);
+  const sitesBoleh = await allowedSiteIds(req);
+  const batasSesi = sitesBoleh === null ? {} : { session: { siteId: { in: sitesBoleh } } };
+
   const [scans, incidents, attendance, panics] = await Promise.all([
     prisma.patrolScan.findMany({
+      where: batasSesi,
       orderBy: { scannedAt: 'desc' },
       take: 12,
       include: {
@@ -470,13 +477,22 @@ router.get('/map', async (req, res) => {
       checkpoints: { where: { isActive: true }, select: { id: true, name: true, code: true, lat: true, lng: true, radiusM: true } },
     },
   });
-  const [presence, panics] = await Promise.all([
+  const idsSite = new Set(sites.map((s) => s.id));
+  const [presenceSemua, panics] = await Promise.all([
     getPresence(),
     prisma.panicAlert.findMany({
-      where: { status: { in: ['ACTIVE', 'ACKNOWLEDGED'] } },
+      where: {
+        status: { in: ['ACTIVE', 'ACKNOWLEDGED'] },
+        ...(req.user!.role === 'CLIENT' ? { site: { clientId: req.user!.clientId! } } : {}),
+      },
       include: { guard: { select: { name: true } }, site: { select: { name: true } } },
     }),
   ]);
+  // Klien hanya melihat anggota yang bertugas di site miliknya.
+  const presence =
+    req.user!.role === 'CLIENT'
+      ? presenceSemua.filter((p) => p.siteId && idsSite.has(p.siteId))
+      : presenceSemua;
   res.json({ sites, presence, panics });
 });
 

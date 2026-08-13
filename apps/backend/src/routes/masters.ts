@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND, ADMIN_ONLY } from '../middleware/auth';
-import { siteWhere, isCommand } from '../lib/scope';
+import { siteWhere, isCommand, allowedSiteIds, bolehSite, withSiteScope } from '../lib/scope';
 import { audit } from '../lib/notify';
 import { invalidate } from '../lib/redis';
 
@@ -64,6 +64,8 @@ router.delete('/clients/:id', allow(...ADMIN_ONLY), async (req, res) => {
 
 router.get('/sites', async (req, res) => {
   const where: any = { ...siteWhere(req) };
+  const bolehIds = await allowedSiteIds(req);
+  if (bolehIds !== null) where.id = { in: bolehIds.length ? bolehIds : ['-tidak-boleh-'] };
   if (req.query.clientId) where.clientId = String(req.query.clientId);
   if (req.query.q) where.name = { contains: String(req.query.q), mode: 'insensitive' };
   const sites = await prisma.site.findMany({
@@ -78,6 +80,8 @@ router.get('/sites', async (req, res) => {
 });
 
 router.get('/sites/:id', async (req, res) => {
+  if (!(await bolehSite(req, req.params.id)))
+    return res.status(403).json({ message: 'Site ini di luar cakupan akses Anda' });
   const site = await prisma.site.findUnique({
     where: { id: req.params.id },
     include: {
@@ -160,9 +164,9 @@ router.delete('/zones/:id', allow(...COMMAND), async (req, res) => {
 /* ─────────────────────────── CHECKPOINT ─────────────────────────── */
 
 router.get('/checkpoints', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  where = await withSiteScope(req, where);
   const list = await prisma.checkpoint.findMany({
     where,
     orderBy: { name: 'asc' },
@@ -206,7 +210,7 @@ router.delete('/checkpoints/:id', allow(...COMMAND), async (req, res) => {
 });
 
 /** Data untuk cetak kartu QR titik patroli. */
-router.get('/checkpoints/:id/qr', async (req, res) => {
+router.get('/checkpoints/:id/qr', allow(...COMMAND), async (req, res) => {
   const cp = await prisma.checkpoint.findUnique({
     where: { id: req.params.id },
     include: { site: { select: { name: true, code: true } }, zone: true },
@@ -218,9 +222,9 @@ router.get('/checkpoints/:id/qr', async (req, res) => {
 /* ─────────────────────────── RUTE PATROLI ─────────────────────────── */
 
 router.get('/routes', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  where = await withSiteScope(req, where);
   const list = await prisma.patrolRoute.findMany({
     where,
     orderBy: { name: 'asc' },
@@ -301,8 +305,9 @@ router.delete('/routes/:id', allow(...COMMAND), async (req, res) => {
 /* ─────────────────────────── SHIFT ─────────────────────────── */
 
 router.get('/shifts', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
+  where = await withSiteScope(req, where);
   const list = await prisma.shift.findMany({
     where,
     orderBy: [{ siteId: 'asc' }, { startTime: 'asc' }],
@@ -342,9 +347,10 @@ router.delete('/shifts/:id', allow(...COMMAND), async (req, res) => {
 /* ─────────────────────────── INVENTARIS ─────────────────────────── */
 
 router.get('/equipment', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.query.status) where.status = String(req.query.status);
+  where = await withSiteScope(req, where);
   const list = await prisma.equipment.findMany({
     where,
     orderBy: { name: 'asc' },

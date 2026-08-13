@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND } from '../middleware/auth';
 import { startOfDay, endOfDay, dateKey } from '../lib/time';
+import { withSiteScope, bolehSite, isCommand } from '../lib/scope';
 import { audit, notifyUsers } from '../lib/notify';
 
 const router = Router();
@@ -11,10 +12,10 @@ router.use(auth);
 /* ─────────────────────────── BUKU TAMU ─────────────────────────── */
 
 router.get('/visitors', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.query.status) where.status = String(req.query.status);
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  where = await withSiteScope(req, where);
   if (req.query.from || req.query.to) {
     where.checkInAt = {};
     if (req.query.from) where.checkInAt.gte = startOfDay(new Date(String(req.query.from)));
@@ -54,9 +55,11 @@ const visitorSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-router.post('/visitors', async (req, res) => {
+router.post('/visitors', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const p = visitorSchema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Data tamu belum lengkap', issues: p.error.issues });
+  if (!(await bolehSite(req, p.data.siteId)))
+    return res.status(403).json({ message: 'Site ini di luar penempatan Anda' });
   const v = await prisma.visitor.create({
     data: { ...(p.data as any), handledById: req.user!.sub },
     include: { site: { select: { name: true } } },
@@ -65,7 +68,7 @@ router.post('/visitors', async (req, res) => {
   res.status(201).json(v);
 });
 
-router.post('/visitors/:id/checkout', async (req, res) => {
+router.post('/visitors/:id/checkout', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const v = await prisma.visitor.update({
     where: { id: req.params.id },
     data: { checkOutAt: new Date(), status: 'CHECKED_OUT', notes: req.body?.notes || undefined },
@@ -73,7 +76,7 @@ router.post('/visitors/:id/checkout', async (req, res) => {
   res.json(v);
 });
 
-router.put('/visitors/:id', async (req, res) => {
+router.put('/visitors/:id', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const v = await prisma.visitor.update({ where: { id: req.params.id }, data: req.body });
   res.json(v);
 });
@@ -81,9 +84,9 @@ router.put('/visitors/:id', async (req, res) => {
 /* ─────────────────────────── LALU LINTAS KENDARAAN ─────────────────────────── */
 
 router.get('/vehicles', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  where = await withSiteScope(req, where);
   if (req.query.open === 'true') where.outAt = null;
   if (req.query.q) where.plate = { contains: String(req.query.q), mode: 'insensitive' };
   const rows = await prisma.vehicleLog.findMany({
@@ -95,7 +98,7 @@ router.get('/vehicles', async (req, res) => {
   res.json(rows);
 });
 
-router.post('/vehicles', async (req, res) => {
+router.post('/vehicles', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     siteId: z.string(),
     plate: z.string().min(2),
@@ -109,13 +112,15 @@ router.post('/vehicles', async (req, res) => {
   });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Nomor polisi wajib diisi' });
+  if (!(await bolehSite(req, p.data.siteId)))
+    return res.status(403).json({ message: 'Site ini di luar penempatan Anda' });
   const v = await prisma.vehicleLog.create({
     data: { ...(p.data as any), plate: p.data.plate.toUpperCase(), recordedById: req.user!.sub },
   });
   res.status(201).json(v);
 });
 
-router.post('/vehicles/:id/out', async (req, res) => {
+router.post('/vehicles/:id/out', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const v = await prisma.vehicleLog.update({
     where: { id: req.params.id },
     data: { outAt: new Date(), notes: req.body?.notes || undefined },
@@ -126,11 +131,11 @@ router.post('/vehicles/:id/out', async (req, res) => {
 /* ─────────────────────────── SERAH TERIMA SHIFT ─────────────────────────── */
 
 router.get('/handovers', async (req, res) => {
-  const where: any = {};
+  let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.user!.role === 'GUARD')
     where.OR = [{ fromGuardId: req.user!.sub }, { toGuardId: req.user!.sub }];
-  if (req.user!.role === 'CLIENT') where.site = { clientId: req.user!.clientId };
+  if (req.user!.role === 'CLIENT') where = await withSiteScope(req, where);
   const rows = await prisma.handover.findMany({
     where,
     orderBy: { createdAt: 'desc' },
@@ -144,7 +149,7 @@ router.get('/handovers', async (req, res) => {
   res.json(rows);
 });
 
-router.post('/handovers', async (req, res) => {
+router.post('/handovers', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const schema = z.object({
     siteId: z.string(),
     toGuardId: z.string(),
@@ -174,7 +179,7 @@ router.post('/handovers', async (req, res) => {
   res.status(201).json(h);
 });
 
-router.post('/handovers/:id/ack', async (req, res) => {
+router.post('/handovers/:id/ack', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const h = await prisma.handover.findUnique({ where: { id: req.params.id } });
   if (!h) return res.status(404).json({ message: 'Serah terima tidak ditemukan' });
   if (h.toGuardId !== req.user!.sub)
@@ -189,8 +194,15 @@ router.post('/handovers/:id/ack', async (req, res) => {
 /* ─────────────────────────── PENGUMUMAN & NOTIFIKASI ─────────────────────────── */
 
 router.get('/announcements', async (req, res) => {
+  // Pengguna hanya menerima pengumuman yang ditujukan kepadanya.
+  const penerima = isCommand(req) ? undefined : { audience: { in: ['ALL', req.user!.role] } };
   const rows = await prisma.announcement.findMany({
-    where: { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+    where: {
+      AND: [
+        { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+        ...(penerima ? [penerima] : []),
+      ],
+    },
     orderBy: { publishedAt: 'desc' },
     take: 50,
     include: { createdBy: { select: { id: true, name: true, avatarUrl: true } } },

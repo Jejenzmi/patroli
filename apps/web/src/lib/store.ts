@@ -38,7 +38,12 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
   login: async (username, password) => {
-    const r = await api.post<{ token: string; user: Me }>('/auth/login', { username, password });
+    // Penanda platform: server menolak akun anggota di portal web.
+    const r = await api.post<{ token: string; user: Me }>('/auth/login', {
+      username,
+      password,
+      platform: 'web',
+    });
     localStorage.setItem('patroli_token', r.token);
     set({ me: r.user, ready: true });
     connectSocket();

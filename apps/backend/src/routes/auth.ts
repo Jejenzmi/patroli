@@ -11,6 +11,8 @@ const router = Router();
 const loginSchema = z.object({
   username: z.string().min(3),
   password: z.string().min(4),
+  /** 'web' untuk pusat komando, 'mobile' untuk aplikasi lapangan */
+  platform: z.enum(['web', 'mobile']).optional(),
 });
 
 router.post('/login', async (req, res) => {
@@ -34,6 +36,17 @@ router.post('/login', async (req, res) => {
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ message: 'Kata sandi salah' });
+
+  // Setiap peran memakai pintu masuknya sendiri.
+  const platform = parsed.data.platform;
+  if (platform === 'web' && user.role === 'GUARD')
+    return res.status(403).json({
+      message: 'Akun anggota dilayani lewat aplikasi lapangan PATROLI, bukan portal web.',
+    });
+  if (platform === 'mobile' && user.role === 'CLIENT')
+    return res.status(403).json({
+      message: 'Akun klien dilayani lewat portal web patroli.gokar.id, bukan aplikasi lapangan.',
+    });
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   const token = signToken({

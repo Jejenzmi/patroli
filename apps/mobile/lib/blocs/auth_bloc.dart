@@ -64,7 +64,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>((e, emit) async {
       emit(const AuthState(status: AuthStatus.loading));
       try {
-        final r = await Api.i.post('/auth/login', {'username': e.username, 'password': e.password});
+        final r = await Api.i.post('/auth/login', {
+          'username': e.username,
+          'password': e.password,
+          // Penanda platform: server menolak akun klien di aplikasi lapangan.
+          'platform': 'mobile',
+        });
         final user = MeUser.fromJson(r['user']);
         // Aplikasi lapangan ditujukan untuk petugas; akun klien memakai portal web.
         if (user.role == 'CLIENT') {

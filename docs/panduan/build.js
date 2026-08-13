@@ -96,7 +96,38 @@ part('Pendahuluan', 'Mengenal PATROLI', () => {
       ['Klien', 'Pemantauan', '—', 'Hanya site milik perusahaannya'],
     ]
   ));
-  s.push(warn('Perhatian', 'Akun <strong>Klien</strong> sengaja tidak dapat masuk ke aplikasi Android. Bila dicoba, aplikasi menampilkan pesan agar memakai portal web.'));
+  s.push(warn('Pintu masuk terpisah', 'Setiap peran memakai pintunya sendiri. Akun <strong>Anggota</strong> ditolak di portal web dan diarahkan ke aplikasi lapangan; akun <strong>Klien</strong> ditolak di aplikasi lapangan dan diarahkan ke portal web. Penolakan ini dilakukan di sisi server, bukan sekadar disembunyikan di tampilan.'));
+  s.push(sub('Rincian hak akses'));
+  s.push(p('Tabel berikut adalah aturan yang benar-benar diberlakukan server pada setiap permintaan. Menyembunyikan menu saja tidak cukup — data yang bukan haknya tetap ditolak walau alamatnya diketik langsung.'));
+  s.push(table(
+    ['Kemampuan', 'Super Admin', 'Admin', 'Supervisor', 'Anggota', 'Klien'],
+    [
+      ['Kelola klien &amp; site', '✓', '✓', '—', '—', '—'],
+      ['Kelola titik, rute, shift, inventaris', '✓', '✓', '✓', '—', '—'],
+      ['Kelola personel', '✓', '✓', '—', '—', '—'],
+      ['Susun jadwal &amp; roster', '✓', '✓', '✓', '—', '—'],
+      ['Presensi &amp; jalankan patroli', '✓', '✓', '✓', '✓', '—'],
+      ['Buat laporan insiden', '✓', '✓', '✓', '✓', '—'],
+      ['Ubah status &amp; tugaskan insiden', '✓', '✓', '✓', '—', '—'],
+      ['Tombol darurat', '✓', '✓', '✓', '✓', '—'],
+      ['Respons &amp; tutup sinyal darurat', '✓', '✓', '✓', '—', '—'],
+      ['Buku tamu &amp; kendaraan (mencatat)', '✓', '✓', '✓', '✓', '—'],
+      ['Pengumuman (menerbitkan)', '✓', '✓', '✓', '—', '—'],
+      ['Dasbor, peta, laporan, ekspor', '✓', '✓', '✓', '—', '✓'],
+      ['Jejak audit', '✓', '✓', '✓', '—', '—'],
+    ]
+  ));
+  s.push(sub('Cakupan data yang terlihat'));
+  s.push(table(
+    ['Peran', 'Data yang terlihat'],
+    [
+      ['Super Admin &amp; Admin', 'Seluruh klien dan seluruh site.'],
+      ['Supervisor', 'Seluruh site untuk keperluan operasional; tidak mengelola klien, site, dan personel.'],
+      ['Anggota', 'Hanya jadwal, presensi, patroli, dan laporan miliknya sendiri; buku tamu serta kendaraan hanya pada site penempatannya. Membuka milik anggota lain ditolak.'],
+      ['Klien', 'Hanya site milik perusahaannya — termasuk personel yang ditempatkan di sana, patroli, insiden, tamu, kendaraan, dan laporannya. Site klien lain tidak dapat dibuka.'],
+    ]
+  ));
+  s.push(note('Pengumuman', 'Pengumuman disaring menurut penerimanya: anggota hanya menerima yang ditujukan ke semua atau ke anggota, klien hanya yang ditujukan ke semua atau ke klien.'));
   s.push(sub('Bagaimana bukti patroli dijaga'));
   s.push(p('Satu pemindaian titik hanya diterima bila tiga hal terpenuhi:'));
   s.push(ul([
