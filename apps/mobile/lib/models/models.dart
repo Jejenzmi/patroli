@@ -70,6 +70,12 @@ class Checkpoint {
   final int radiusM;
   final int orderIndex;
   final int targetMinute;
+
+  /// Lantai tempat titik ini terpasang. Dipakai sebagai penanda keberadaan
+  /// petugas di dalam gedung, tempat GPS tidak dapat membedakan lantai.
+  final String? floorName;
+  final int? floorLevel;
+
   Checkpoint({
     required this.id,
     required this.code,
@@ -79,6 +85,8 @@ class Checkpoint {
     required this.radiusM,
     this.orderIndex = 0,
     this.targetMinute = 0,
+    this.floorName,
+    this.floorLevel,
   });
 
   /// Menerima bentuk RouteCheckpoint {orderIndex, checkpoint:{…}} maupun Checkpoint polos.
@@ -93,6 +101,8 @@ class Checkpoint {
       radiusM: c['radiusM'] ?? 30,
       orderIndex: j['orderIndex'] ?? 0,
       targetMinute: j['targetMinute'] ?? 0,
+      floorName: c['floor']?['name'] as String?,
+      floorLevel: c['floor']?['level'] as int?,
     );
   }
 }

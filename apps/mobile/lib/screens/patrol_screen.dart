@@ -39,7 +39,7 @@ class PatrolScreen extends StatelessWidget {
               Expanded(
                 child: state.session == null
                     ? _RouteChooser(state: state)
-                    : _ActivePatrol(session: state.session!, busy: state.loading),
+                    : _ActivePatrol(state: state, busy: state.loading),
               ),
             ],
           );
@@ -184,15 +184,20 @@ class _RouteChooser extends StatelessWidget {
 /* ── Patroli sedang berjalan ── */
 
 class _ActivePatrol extends StatelessWidget {
-  final PatrolSessionModel session;
+  final DutyState state;
   final bool busy;
-  const _ActivePatrol({required this.session, required this.busy});
+  const _ActivePatrol({required this.state, required this.busy});
+
+  PatrolSessionModel get session => state.session!;
 
   @override
   Widget build(BuildContext context) {
     final cps = session.route.checkpoints;
-    final done = session.scannedIds.length;
-    final next = cps.where((c) => !session.scannedIds.contains(c.id)).toList();
+    // Kemajuan menghitung juga titik yang sudah dipindai namun catatannya
+    // masih menunggu jaringan, supaya petugas tidak memindai ulang.
+    final selesai = state.titikSelesai;
+    final done = selesai.length;
+    final next = cps.where((c) => !selesai.contains(c.id)).toList();
 
     return Column(
       children: [
@@ -272,7 +277,7 @@ class _ActivePatrol extends StatelessWidget {
                       ),
                       MarkerLayer(
                         markers: cps.map((c) {
-                          final ok = session.scannedIds.contains(c.id);
+                          final ok = selesai.contains(c.id);
                           return Marker(
                             point: LatLng(c.lat, c.lng),
                             width: 30,
@@ -298,7 +303,8 @@ class _ActivePatrol extends StatelessWidget {
               const SizedBox(height: 12),
               ...cps.map((c) => _CheckpointTile(
                     cp: c,
-                    scanned: session.scannedIds.contains(c.id),
+                    scanned: selesai.contains(c.id),
+                    tertunda: state.tertunda.contains(c.id),
                     isNext: next.isNotEmpty && next.first.id == c.id,
                     sessionId: session.id,
                     requirePhoto: session.route.requirePhoto,
@@ -353,6 +359,9 @@ class _ActivePatrol extends StatelessWidget {
 class _CheckpointTile extends StatelessWidget {
   final Checkpoint cp;
   final bool scanned, isNext, requirePhoto;
+
+  /// Sudah dipindai petugas tetapi catatannya masih menunggu jaringan.
+  final bool tertunda;
   final String sessionId;
 
   const _CheckpointTile({
@@ -361,6 +370,7 @@ class _CheckpointTile extends StatelessWidget {
     required this.isNext,
     required this.sessionId,
     required this.requirePhoto,
+    this.tertunda = false,
   });
 
   @override
@@ -402,8 +412,32 @@ class _CheckpointTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(cp.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                Text('${cp.code} · target menit ${cp.targetMinute}',
-                    style: const TextStyle(color: P.muted, fontSize: 11)),
+                Row(
+                  children: [
+                    if (cp.floorName != null) ...[
+                      // Penanda lantai: menegaskan titik ini berada di lantai berapa.
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: P.violet.withOpacity(.14),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: P.violet.withOpacity(.35)),
+                        ),
+                        child: Text(
+                          cp.floorLevel != null ? 'Lt. ${cp.floorLevel}' : cp.floorName!,
+                          style: const TextStyle(color: P.violet, fontSize: 9.5, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                    Expanded(
+                      child: Text('${cp.code} · target menit ${cp.targetMinute}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: P.muted, fontSize: 11)),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -413,6 +447,7 @@ class _CheckpointTile extends StatelessWidget {
               onPressed: () => _manualSheet(context),
               icon: const Icon(Icons.more_horiz, color: P.muted, size: 20),
             ),
+          if (tertunda) const StatusPill('Menunggu kirim', color: P.cyan, icon: Icons.cloud_upload_outlined),
           if (isNext && !scanned) const StatusPill('Berikutnya', color: P.amber),
         ],
       ),

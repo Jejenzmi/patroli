@@ -5,6 +5,8 @@ import { auth, allow, COMMAND } from '../middleware/auth';
 import { SLA_HOURS, WS_EVENTS, type IncidentSeverity } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyCommand, notifyUsers, klienDariSite } from '../lib/notify';
+import { beritahuDivisi, LABEL_DARURAT } from '../lib/darurat';
+import { jalankanAlarm, sireneUntukKejadian } from '../lib/alarm';
 import { parsePaging, bolehSite, isCommand } from '../lib/scope';
 import { getPresence } from '../lib/redis';
 
@@ -76,6 +78,9 @@ router.get('/:id', async (req, res) => {
 });
 
 const incidentSchema = z.object({
+  /// Waktu yang dilaporkan perangkat bila catatan ini sempat mengantre
+  /// tanpa jaringan; waktu resmi tetap milik server (BRULE-008).
+  offlineAt: z.string().optional().nullable(),
   siteId: z.string(),
   category: z.string(),
   severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
@@ -105,6 +110,7 @@ router.post('/', allow(...COMMAND, 'GUARD'), async (req, res) => {
       ...(data as any),
       code: incidentCode(seq),
       reporterId: req.user!.sub,
+      offlineAt: data.offlineAt ? new Date(data.offlineAt) : null,
       occurredAt: occurred,
       slaDueAt,
       lossValue: lossValue ?? null,
@@ -232,22 +238,29 @@ router.post('/panic/trigger', allow(...COMMAND, 'GUARD'), async (req, res) => {
     lat: z.number().optional().nullable(),
     lng: z.number().optional().nullable(),
     message: z.string().optional().nullable(),
+    type: z.enum(['UMUM', 'KEBAKARAN', 'KECELAKAAN', 'MEDIS', 'KRIMINAL', 'BENCANA']).default('UMUM'),
+    /// Dikirim aplikasi bila sinyal sempat mengantre saat tanpa jaringan.
+    /// Waktu resmi tetap milik server; kolom ini hanya menerangkan bahwa
+    /// catatan menyusul (BRULE-008).
+    offlineAt: z.string().optional().nullable(),
   });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Site wajib dikirim' });
+  const { offlineAt, ...isi } = p.data;
 
   // FR-PAN-002: lantai terakhir diambil dari titik QR yang paling akhir dipindai.
   const scanTerakhir = await prisma.patrolScan.findFirst({
     where: { session: { guardId: req.user!.sub } },
     orderBy: { scannedAt: 'desc' },
-    select: { checkpoint: { select: { floorId: true } } },
+    select: { scannedAt: true, checkpoint: { select: { floorId: true, name: true } } },
   });
 
   const alert = await prisma.panicAlert.create({
     data: {
       guardId: req.user!.sub,
       floorId: scanTerakhir?.checkpoint.floorId ?? null,
-      ...(p.data as any),
+      ...(isi as any),
+      ...(offlineAt ? { offlineAt: new Date(offlineAt) } : {}),
     },
     include: {
       guard: { select: { id: true, name: true, phone: true, avatarUrl: true, employeeId: true } },
@@ -256,18 +269,79 @@ router.post('/panic/trigger', allow(...COMMAND, 'GUARD'), async (req, res) => {
     },
   });
 
-  emitOps(WS_EVENTS.PANIC, alert, alert.siteId);
+  const label = LABEL_DARURAT[alert.type] ?? 'Bantuan umum';
+  const diLantai = alert.floor ? ` · ${alert.floor.name}` : '';
   const isiNotifikasi = {
     type: 'PANIC',
-    title: '🚨 SINYAL DARURAT',
-    body: `${alert.guard.name} menekan tombol darurat di ${alert.site.name}`,
-    data: { panicId: alert.id, lat: alert.lat, lng: alert.lng },
+    title: `🚨 DARURAT — ${label.toUpperCase()}`,
+    body: `${alert.guard.name} di ${alert.site.name}${diLantai}`,
+    data: { panicId: alert.id, lat: alert.lat, lng: alert.lng, type: alert.type },
   };
+
   await notifyCommand(isiNotifikasi, alert.siteId);
   // FR-PAN-003: klien pemilik site menerima pemberitahuan pada saat yang sama.
   await notifyUsers(await klienDariSite(alert.siteId), isiNotifikasi);
-  await audit(req.user!.sub, 'PANIC', 'PanicAlert', alert.id, null, req.ip);
-  res.status(201).json(alert);
+  // Diteruskan ke divisi penanggap sesuai jenis kejadiannya.
+  const divisi = await beritahuDivisi({ type: alert.type, siteId: alert.siteId, isi: isiNotifikasi });
+
+  // Sirene tiang dibunyikan tanpa menunggu jawaban perangkat, agar
+  // pemberitahuan ke pusat kendali tidak ikut tertahan bila alat mati.
+  const perangkat = await sireneUntukKejadian(alert.siteId, alert.floorId);
+  const alarm = perangkat.length
+    ? await jalankanAlarm({
+        perangkat,
+        aksi: 'ON',
+        alasan: label,
+        panicId: alert.id,
+        sumber: 'PANIC',
+        olehId: req.user!.sub,
+      })
+    : [];
+
+  const lengkap = await prisma.panicAlert.update({
+    where: { id: alert.id },
+    data: { notifiedDivisions: divisi as any },
+    include: {
+      guard: { select: { id: true, name: true, phone: true, avatarUrl: true, employeeId: true } },
+      site: { select: { id: true, name: true, lat: true, lng: true, picPhone: true } },
+      floor: { select: { id: true, name: true, level: true } },
+    },
+  });
+
+  emitOps(WS_EVENTS.PANIC, { ...lengkap, alarm }, alert.siteId);
+  await audit(req.user!.sub, 'PANIC', 'PanicAlert', alert.id, { type: alert.type }, req.ip);
+  res.status(201).json({ ...lengkap, divisi, alarm });
+});
+
+/** Menyalakan atau mematikan sirene secara manual untuk satu kejadian. */
+router.post('/panic/:id/alarm', allow(...COMMAND), async (req, res) => {
+  const aksi = String(req.body?.action || 'OFF').toUpperCase() === 'ON' ? 'ON' : 'OFF';
+  const alert = await prisma.panicAlert.findUnique({ where: { id: req.params.id } });
+  if (!alert) return res.status(404).json({ message: 'Sinyal darurat tidak ditemukan' });
+
+  const perangkat = await sireneUntukKejadian(alert.siteId, alert.floorId);
+  if (!perangkat.length) return res.status(404).json({ message: 'Tidak ada sirene aktif di site ini' });
+
+  const hasil = await jalankanAlarm({
+    perangkat,
+    aksi,
+    alasan: aksi === 'ON' ? 'Dinyalakan manual dari pusat kendali' : 'Dimatikan dari pusat kendali',
+    panicId: alert.id,
+    sumber: 'MANUAL',
+    olehId: req.user!.sub,
+  });
+  await audit(req.user!.sub, `ALARM_${aksi}`, 'PanicAlert', alert.id, null, req.ip);
+  res.json({ action: aksi, hasil });
+});
+
+/** Riwayat perintah sirene pada satu kejadian. */
+router.get('/panic/:id/alarm', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  const rows = await prisma.alarmEvent.findMany({
+    where: { panicId: req.params.id },
+    orderBy: { createdAt: 'desc' },
+    include: { device: { select: { id: true, code: true, name: true, location: true } } },
+  });
+  res.json(rows);
 });
 
 router.get('/panic/list', allow(...COMMAND, 'CLIENT'), async (req, res) => {
@@ -282,7 +356,13 @@ router.get('/panic/list', allow(...COMMAND, 'CLIENT'), async (req, res) => {
     include: {
       guard: { select: { id: true, name: true, phone: true, avatarUrl: true } },
       site: { select: { id: true, name: true } },
+      floor: { select: { id: true, name: true, level: true } },
       acknowledgedBy: { select: { id: true, name: true } },
+      alarmEvents: {
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+        include: { device: { select: { code: true, name: true } } },
+      },
     },
   });
   res.json(rows);
@@ -314,8 +394,23 @@ router.post('/panic/:id/resolve', allow(...COMMAND), async (req, res) => {
     where: { id: req.params.id },
     data: { status: 'RESOLVED', resolvedAt: new Date(), responseNote: req.body?.note || undefined },
   });
+
+  // Menutup kejadian sekaligus mematikan sirene; membiarkannya berbunyi
+  // setelah penanganan selesai justru menumpulkan kewaspadaan.
+  const perangkat = await sireneUntukKejadian(alert.siteId, alert.floorId);
+  const alarm = perangkat.length
+    ? await jalankanAlarm({
+        perangkat,
+        aksi: 'OFF',
+        alasan: 'Penanganan selesai',
+        panicId: alert.id,
+        sumber: 'PANIC',
+        olehId: req.user!.sub,
+      })
+    : [];
+
   emitOps(WS_EVENTS.PANIC_ACK, alert, alert.siteId);
-  res.json(alert);
+  res.json({ ...alert, alarm });
 });
 
 /** Posisi seluruh anggota yang sedang online (dari Redis). */

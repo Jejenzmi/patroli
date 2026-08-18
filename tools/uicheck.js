@@ -26,6 +26,7 @@ const ROUTES = [
   ['/kpi', 'Penilaian Kinerja'],
   ['/lantai', 'Lantai, Denah & Regu'],
   ['/cuti', 'Cuti, Izin & Lembur'],
+  ['/sirene', 'Darurat & Sirene'],
   ['/laporan', 'Laporan & Ekspor'],
   ['/jejak-audit', 'Jejak Audit'],
   ['/profil', 'Profil Saya'],
@@ -49,7 +50,7 @@ const ROUTES = [
   let pass = 0;
 
   const PERAN = process.env.PERAN || "SUPER_ADMIN";
-  const KHUSUS_KOMANDO = ["/titik", "/klien", "/jejak-audit", "/darurat", "/lantai"];
+  const KHUSUS_KOMANDO = ["/titik", "/klien", "/jejak-audit", "/darurat", "/lantai", "/sirene"];
   const daftar = PERAN === "CLIENT" ? ROUTES.filter((r) => !KHUSUS_KOMANDO.includes(r[0])) : ROUTES;
 
   for (const [route, expect] of daftar) {

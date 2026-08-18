@@ -27,6 +27,7 @@ import reportRoutes from './routes/reports';
 import uploadRoutes from './routes/uploads';
 import taskRoutes from './routes/tasks';
 import kpiRoutes from './routes/kpi';
+import alarmSimRoutes from './routes/alarm-sim';
 
 const app = express();
 const PORT = Number(process.env.PORT || 5027);
@@ -67,6 +68,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/kpi', kpiRoutes);
+// Tiruan papan relai sirene untuk peragaan dan pengujian; perangkat asli
+// berada di jaringan lokal klien dan dipanggil lewat alamatnya sendiri.
+app.use('/api/alarm-sim', alarmSimRoutes);
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
 

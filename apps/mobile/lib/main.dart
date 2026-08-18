@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/sinkron.dart';
+import 'widgets/bilah_luring.dart';
 import 'core/theme.dart';
 import 'blocs/auth_bloc.dart';
 import 'blocs/duty_bloc.dart';
@@ -31,6 +35,10 @@ void main() async {
     systemNavigationBarDividerColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.light,
   ));
+  // Pengiriman ulang tindakan yang tertahan tanpa jaringan berjalan sejak
+  // aplikasi dibuka. Sengaja tidak ditunggu: layar harus tampil lebih dulu,
+  // apa pun keadaan penyimpanan dan jaringan.
+  unawaited(Sinkron.i.mulai());
   runApp(const PatroliApp());
 }
 
@@ -50,10 +58,13 @@ class PatroliApp extends StatelessWidget {
         theme: buildTheme(),
         // Pengaturan ukuran huruf sistem dibatasi agar tata letak tetap utuh
         // pada perangkat yang menyetel huruf sangat besar.
+        // Bilah keadaan jaringan dipasang di atas seluruh rute, bukan hanya
+        // layar utama: petugas bisa saja sedang membuka Tugas atau Buku Tamu
+        // ketika sinyal hilang, dan justru di situ ia perlu tahu.
         builder: (context, child) => MediaQuery.withClampedTextScaling(
           minScaleFactor: 0.85,
           maxScaleFactor: 1.25,
-          child: child ?? const SizedBox.shrink(),
+          child: BilahLuring(child: child ?? const SizedBox.shrink()),
         ),
         home: const _Gate(),
       ),

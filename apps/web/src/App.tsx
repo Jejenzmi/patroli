@@ -31,6 +31,7 @@ import Tasks from './pages/Tasks';
 import Kpi from './pages/Kpi';
 import Floors from './pages/Floors';
 import Leaves from './pages/Leaves';
+import Sirene from './pages/Sirene';
 
 function Guard({ children }: { children: JSX.Element }) {
   const { me, ready } = useAuth();
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="/kpi" element={<Kpi />} />
         <Route path="/lantai" element={<Floors />} />
         <Route path="/cuti" element={<Leaves />} />
+        <Route path="/sirene" element={<Sirene />} />
         <Route path="/tamu" element={<Visitors />} />
         <Route path="/kendaraan" element={<Vehicles />} />
         <Route path="/inventaris" element={<Equipment />} />

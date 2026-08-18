@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { jalankanAlarm } from '../lib/alarm';
 import { auth, allow, COMMAND, ADMIN_ONLY } from '../middleware/auth';
 import { siteWhere, isCommand, allowedSiteIds, bolehSite, withSiteScope } from '../lib/scope';
 import { audit } from '../lib/notify';
@@ -513,6 +514,190 @@ router.put('/equipment/:id', allow(...COMMAND), async (req, res) => {
 router.delete('/equipment/:id', allow(...COMMAND), async (req, res) => {
   await prisma.equipment.delete({ where: { id: req.params.id } });
   res.json({ message: 'Inventaris dihapus' });
+});
+
+/* ═══════════════ DIVISI PENANGGAP & PERUTEAN DARURAT ═══════════════ */
+
+const JENIS_DARURAT = ["UMUM", "KEBAKARAN", "KECELAKAAN", "MEDIS", "KRIMINAL", "BENCANA"] as const;
+
+router.get("/divisions", async (req, res) => {
+  const where: any = {};
+  if (req.query.siteId) where.OR = [{ siteId: String(req.query.siteId) }, { siteId: null }];
+  const rows = await prisma.emergencyDivision.findMany({
+    where,
+    orderBy: [{ siteId: "asc" }, { name: "asc" }],
+    include: {
+      site: { select: { id: true, name: true } },
+      members: { select: { id: true, name: true, employeeId: true, avatarUrl: true } },
+      routes: { select: { id: true, type: true, siteId: true } },
+    },
+  });
+  res.json(rows);
+});
+
+const divisionSchema = z.object({
+  code: z.string().min(2),
+  name: z.string().min(2),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  siteId: z.string().optional().nullable(),
+  memberIds: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
+});
+
+router.post("/divisions", allow(...ADMIN_ONLY), async (req, res) => {
+  const p = divisionSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: "Kode dan nama divisi wajib diisi" });
+  const { memberIds, ...data } = p.data;
+  const d = await prisma.emergencyDivision.create({ data: { ...data, siteId: data.siteId || null } });
+  if (memberIds?.length)
+    await prisma.user.updateMany({ where: { id: { in: memberIds } }, data: { divisionId: d.id } });
+  await audit(req.user!.sub, "CREATE", "EmergencyDivision", d.id, data, req.ip);
+  res.status(201).json(d);
+});
+
+router.put("/divisions/:id", allow(...ADMIN_ONLY), async (req, res) => {
+  const p = divisionSchema.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: "Data divisi tidak valid" });
+  const { memberIds, ...data } = p.data;
+  const d = await prisma.emergencyDivision.update({
+    where: { id: req.params.id },
+    data: { ...data, ...(data.siteId !== undefined ? { siteId: data.siteId || null } : {}) },
+  });
+  if (memberIds) {
+    await prisma.user.updateMany({ where: { divisionId: d.id }, data: { divisionId: null } });
+    if (memberIds.length)
+      await prisma.user.updateMany({ where: { id: { in: memberIds } }, data: { divisionId: d.id } });
+  }
+  await audit(req.user!.sub, "UPDATE", "EmergencyDivision", d.id, data, req.ip);
+  res.json(d);
+});
+
+router.delete("/divisions/:id", allow(...ADMIN_ONLY), async (req, res) => {
+  await prisma.emergencyDivision.delete({ where: { id: req.params.id } });
+  await audit(req.user!.sub, "DELETE", "EmergencyDivision", req.params.id, null, req.ip);
+  res.json({ message: "Divisi dihapus" });
+});
+
+/** Pemetaan jenis darurat ke divisi. */
+router.get("/panic-routes", async (req, res) => {
+  const where: any = {};
+  if (req.query.siteId) where.OR = [{ siteId: String(req.query.siteId) }, { siteId: null }];
+  const rows = await prisma.panicRoute.findMany({
+    where,
+    orderBy: [{ type: "asc" }],
+    include: {
+      division: { select: { id: true, code: true, name: true, phone: true } },
+      site: { select: { id: true, name: true } },
+    },
+  });
+  res.json(rows);
+});
+
+router.post("/panic-routes", allow(...ADMIN_ONLY), async (req, res) => {
+  const schema = z.object({
+    type: z.enum(JENIS_DARURAT),
+    divisionId: z.string(),
+    siteId: z.string().optional().nullable(),
+  });
+  const p = schema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: "Jenis darurat dan divisi wajib dipilih" });
+  const r = await prisma.panicRoute.create({
+    data: { ...p.data, siteId: p.data.siteId || null },
+  });
+  await audit(req.user!.sub, "CREATE", "PanicRoute", r.id, p.data, req.ip);
+  res.status(201).json(r);
+});
+
+router.delete("/panic-routes/:id", allow(...ADMIN_ONLY), async (req, res) => {
+  await prisma.panicRoute.delete({ where: { id: req.params.id } });
+  await audit(req.user!.sub, "DELETE", "PanicRoute", req.params.id, null, req.ip);
+  res.json({ message: "Perutean dihapus" });
+});
+
+/* ═══════════════ SIRENE TIANG ═══════════════ */
+
+router.get("/alarms", async (req, res) => {
+  let where: any = {};
+  if (req.query.siteId) where.siteId = String(req.query.siteId);
+  where = await withSiteScope(req, where);
+  const rows = await prisma.alarmDevice.findMany({
+    where,
+    orderBy: [{ siteId: "asc" }, { code: "asc" }],
+    include: {
+      site: { select: { id: true, name: true } },
+      floor: { select: { id: true, name: true, level: true } },
+      events: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
+  res.json(rows);
+});
+
+const alarmSchema = z.object({
+  siteId: z.string(),
+  floorId: z.string().optional().nullable(),
+  code: z.string().min(2),
+  name: z.string().min(2),
+  location: z.string().optional().nullable(),
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
+  driver: z.enum(["HTTP_GET", "HTTP_JSON"]).optional(),
+  endpointOn: z.string().min(4),
+  endpointOff: z.string().optional().nullable(),
+  authToken: z.string().optional().nullable(),
+  durationS: z.number().int().min(0).max(3600).optional(),
+  isActive: z.boolean().optional(),
+});
+
+router.post("/alarms", allow(...ADMIN_ONLY), async (req, res) => {
+  const p = alarmSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: "Data sirene belum lengkap" });
+  const d = await prisma.alarmDevice.create({ data: { ...p.data, floorId: p.data.floorId || null } as any });
+  await audit(req.user!.sub, "CREATE", "AlarmDevice", d.id, p.data, req.ip);
+  res.status(201).json(d);
+});
+
+router.put("/alarms/:id", allow(...ADMIN_ONLY), async (req, res) => {
+  const p = alarmSchema.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: "Data sirene tidak valid" });
+  const d = await prisma.alarmDevice.update({
+    where: { id: req.params.id },
+    data: { ...p.data, ...(p.data.floorId !== undefined ? { floorId: p.data.floorId || null } : {}) } as any,
+  });
+  await audit(req.user!.sub, "UPDATE", "AlarmDevice", d.id, p.data, req.ip);
+  res.json(d);
+});
+
+router.delete("/alarms/:id", allow(...ADMIN_ONLY), async (req, res) => {
+  await prisma.alarmDevice.delete({ where: { id: req.params.id } });
+  await audit(req.user!.sub, "DELETE", "AlarmDevice", req.params.id, null, req.ip);
+  res.json({ message: "Sirene dihapus" });
+});
+
+/** Uji bunyi satu sirene tanpa membuat sinyal darurat. */
+router.post("/alarms/:id/test", allow(...COMMAND), async (req, res) => {
+  const d = await prisma.alarmDevice.findUnique({ where: { id: req.params.id } });
+  if (!d) return res.status(404).json({ message: "Sirene tidak ditemukan" });
+  const aksi = String(req.body?.action || "ON").toUpperCase() === "OFF" ? "OFF" : "ON";
+  const [hasil] = await jalankanAlarm({
+    perangkat: [d],
+    aksi,
+    alasan: "Uji bunyi dari pusat kendali",
+    sumber: "UJI",
+    olehId: req.user!.sub,
+  });
+  await audit(req.user!.sub, `ALARM_TEST_${aksi}`, "AlarmDevice", d.id, null, req.ip);
+  res.json(hasil);
+});
+
+/** Riwayat perintah sirene. */
+router.get("/alarms/:id/events", async (req, res) => {
+  const rows = await prisma.alarmEvent.findMany({
+    where: { deviceId: req.params.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  res.json(rows);
 });
 
 export default router;

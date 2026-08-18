@@ -77,6 +77,36 @@ enum PanicStatus {
   RESOLVED
 }
 
+/// Jenis keadaan darurat. Tiap jenis diteruskan ke divisi penanggap
+/// yang berbeda, sesuai pemetaan pada PanicRoute.
+enum PanicType {
+  UMUM
+  KEBAKARAN
+  KECELAKAAN
+  MEDIS
+  KRIMINAL
+  BENCANA
+}
+
+/// Cara sistem menyalakan sirene. Sebagian besar papan relai di lapangan
+/// (Shelly, Tasmota, ESP32) cukup dipanggil dengan HTTP GET; perangkat yang
+/// lebih baru umumnya menerima JSON.
+enum AlarmDriver {
+  HTTP_GET
+  HTTP_JSON
+}
+
+enum AlarmAction {
+  ON
+  OFF
+}
+
+enum AlarmSource {
+  PANIC
+  MANUAL
+  UJI
+}
+
 enum VisitorStatus {
   INSIDE
   CHECKED_OUT
@@ -188,6 +218,8 @@ model User {
   attendanceAttempts AttendanceAttempt[]
 
   @@index([role, status])
+  divisionId       String?
+  division         EmergencyDivision? @relation("DivisionMembers", fields: [divisionId], references: [id])
 }
 
 model Client {
@@ -250,6 +282,9 @@ model Site {
   attendanceAttempts AttendanceAttempt[]
 
   @@index([clientId])
+  divisions   EmergencyDivision[]
+  panicRoutes PanicRoute[]
+  alarms      AlarmDevice[]
 }
 
 model Zone {
@@ -405,6 +440,10 @@ model Attendance {
 
   @@index([guardId, checkInAt])
   @@index([siteId, checkInAt])
+  /// Waktu yang dilaporkan perangkat saat kejadian ini sempat mengantre
+  /// tanpa jaringan. Waktu resmi tetap milik server (BRULE-008); kolom ini
+  /// hanya menerangkan bahwa catatan menyusul, bukan menggantikannya.
+  offlineAt   DateTime?
 }
 
 model PatrolSession {
@@ -459,6 +498,10 @@ model PatrolScan {
 
   @@unique([sessionId, checkpointId])
   @@index([checkpointId, scannedAt])
+  /// Waktu yang dilaporkan perangkat saat kejadian ini sempat mengantre
+  /// tanpa jaringan. Waktu resmi tetap milik server (BRULE-008); kolom ini
+  /// hanya menerangkan bahwa catatan menyusul, bukan menggantikannya.
+  offlineAt   DateTime?
 }
 
 model Incident {
@@ -492,6 +535,10 @@ model Incident {
 
   @@index([siteId, status])
   @@index([status, severity])
+  /// Waktu yang dilaporkan perangkat saat kejadian ini sempat mengantre
+  /// tanpa jaringan. Waktu resmi tetap milik server (BRULE-008); kolom ini
+  /// hanya menerangkan bahwa catatan menyusul, bukan menggantikannya.
+  offlineAt   DateTime?
 }
 
 model IncidentMedia {
@@ -528,9 +575,15 @@ model PanicAlert {
   lat             Float?
   lng             Float?
   message         String?
+  /// Jenis keadaan darurat yang dipilih petugas di lapangan
+  type            PanicType   @default(UMUM)
   /// Lantai terakhir berdasarkan titik QR yang terakhir dipindai
   floorId         String?
   floor           Floor?      @relation(fields: [floorId], references: [id])
+  /// Ringkasan divisi yang menerima pemberitahuan, disimpan apa adanya
+  /// agar riwayat tetap terbaca walau pemetaan divisi kemudian diubah.
+  notifiedDivisions Json?
+  alarmEvents     AlarmEvent[]
   status          PanicStatus @default(ACTIVE)
   acknowledgedById String?
   acknowledgedBy  User?       @relation("PanicAck", fields: [acknowledgedById], references: [id])
@@ -540,6 +593,10 @@ model PanicAlert {
   createdAt       DateTime    @default(now())
 
   @@index([status, createdAt])
+  /// Waktu yang dilaporkan perangkat saat kejadian ini sempat mengantre
+  /// tanpa jaringan. Waktu resmi tetap milik server (BRULE-008); kolom ini
+  /// hanya menerangkan bahwa catatan menyusul, bukan menggantikannya.
+  offlineAt   DateTime?
 }
 
 model LocationPing {
@@ -703,6 +760,7 @@ model Floor {
   panics      PanicAlert[]
 
   @@index([siteId, level])
+  alarms      AlarmDevice[]
 }
 
 /// Regu jaga (FR-MST-005)
@@ -846,4 +904,90 @@ model Setting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+
+/// Divisi penanggap keadaan darurat: pemadam, klinik, K3, dan sebagainya.
+model EmergencyDivision {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  /// Nomor yang dihubungi bila tidak ada anggota divisi yang memegang akun
+  phone     String?
+  email     String?
+  /// Kosong berarti divisi berlaku untuk seluruh site
+  siteId    String?
+  site      Site?    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  members   User[]   @relation("DivisionMembers")
+  routes    PanicRoute[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([siteId])
+}
+
+/// Pemetaan jenis darurat ke divisi penanggap. Baris tanpa siteId berlaku
+/// sebagai aturan umum; baris dengan siteId menimpanya untuk site tersebut.
+model PanicRoute {
+  id         String            @id @default(cuid())
+  type       PanicType
+  divisionId String
+  division   EmergencyDivision @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  siteId     String?
+  site       Site?             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  createdAt  DateTime          @default(now())
+
+  @@unique([type, divisionId, siteId])
+  @@index([siteId, type])
+}
+
+/// Sirene atau pengeras suara yang terpasang di tiang.
+model AlarmDevice {
+  id          String      @id @default(cuid())
+  siteId      String
+  site        Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  /// Bila diisi, sirene ini diutamakan saat kejadian berada di lantai tersebut
+  floorId     String?
+  floor       Floor?      @relation(fields: [floorId], references: [id])
+  code        String      @unique
+  name        String
+  location    String?
+  lat         Float?
+  lng         Float?
+  driver      AlarmDriver @default(HTTP_GET)
+  /// Alamat yang dipanggil untuk menyalakan dan mematikan
+  endpointOn  String
+  endpointOff String?
+  authToken   String?
+  /// Lama bunyi otomatis dalam detik; 0 berarti berbunyi sampai dimatikan
+  durationS   Int         @default(60)
+  isActive    Boolean     @default(true)
+  lastState   String?
+  lastSeenAt  DateTime?
+  events      AlarmEvent[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([siteId, isActive])
+}
+
+/// Riwayat perintah ke sirene, termasuk yang gagal — dipakai untuk
+/// membuktikan alarm benar-benar dibunyikan saat kejadian.
+model AlarmEvent {
+  id        String      @id @default(cuid())
+  deviceId  String
+  device    AlarmDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  panicId   String?
+  panic     PanicAlert? @relation(fields: [panicId], references: [id], onDelete: SetNull)
+  action    AlarmAction
+  source    AlarmSource @default(PANIC)
+  ok        Boolean     @default(false)
+  detail    String?
+  latencyMs Int?
+  triggeredById String?
+  createdAt DateTime    @default(now())
+
+  @@index([deviceId, createdAt])
+  @@index([panicId])
 }

@@ -54,7 +54,7 @@ class HomeScreen extends StatelessWidget {
                       FadeInUp(index: 1, child: const _QuickActions()),
                       if (state.session != null) ...[
                         const SizedBox(height: 18),
-                        FadeInUp(index: 2, child: _ActivePatrolCard(session: state.session!)),
+                        FadeInUp(index: 2, child: _ActivePatrolCard(state: state)),
                       ],
                       const SizedBox(height: 18),
                       FadeInUp(index: 3, child: _TodaySchedule(state: state)),
@@ -165,7 +165,7 @@ class _Header extends StatelessWidget {
               StatTile(
                 icon: Icons.route_outlined,
                 label: 'Titik dipindai',
-                value: '${state.session?.scannedIds.length ?? 0}',
+                value: '${state.titikSelesai.length}',
                 color: P.amber,
               ),
               const SizedBox(width: 10),
@@ -392,12 +392,13 @@ class _AttendanceCard extends StatelessWidget {
 /* ── Kartu patroli berjalan ── */
 
 class _ActivePatrolCard extends StatelessWidget {
-  final PatrolSessionModel session;
-  const _ActivePatrolCard({required this.session});
+  final DutyState state;
+  const _ActivePatrolCard({required this.state});
 
   @override
   Widget build(BuildContext context) {
-    final done = session.scannedIds.length;
+    final session = state.session!;
+    final done = state.titikSelesai.length;
     final total = session.route.checkpoints.length;
     final pct = total == 0 ? 0.0 : done / total;
 
@@ -677,9 +678,44 @@ class _AnnouncementStripState extends State<_AnnouncementStrip> {
 
 /* ── Tombol darurat ── */
 
-class _PanicCard extends StatelessWidget {
+/// Satu jenis keadaan darurat beserta divisi yang menanganinya.
+class _JenisDarurat {
+  final String kode, nama, keterangan;
+  final IconData ikon;
+  final Color warna;
+  const _JenisDarurat(this.kode, this.nama, this.ikon, this.warna, this.keterangan);
+}
+
+const _jenisDarurat = <_JenisDarurat>[
+  _JenisDarurat('KEBAKARAN', 'Kebakaran', Icons.local_fire_department_outlined, Color(0xFFFF6B35),
+      'Diteruskan ke Pemadam Kebakaran, K3, dan Komando Sekuriti.'),
+  _JenisDarurat('KECELAKAAN', 'Kecelakaan', Icons.car_crash_outlined, Color(0xFFFB923C),
+      'Diteruskan ke K3, Klinik, dan Komando Sekuriti.'),
+  _JenisDarurat('MEDIS', 'Gawat Medis', Icons.medical_services_outlined, Color(0xFF34D399),
+      'Diteruskan ke Klinik dan K3.'),
+  _JenisDarurat('KRIMINAL', 'Kriminal', Icons.gpp_maybe_outlined, Color(0xFFFF5A5A),
+      'Diteruskan ke Komando Sekuriti.'),
+  _JenisDarurat('BENCANA', 'Bencana', Icons.crisis_alert_outlined, Color(0xFFA78BFA),
+      'Diteruskan ke Tim Tanggap Bencana, K3, dan Sekuriti.'),
+  _JenisDarurat('UMUM', 'Bantuan Umum', Icons.campaign_outlined, Color(0xFF22D3EE),
+      'Diteruskan ke Komando Sekuriti.'),
+];
+
+class _PanicCard extends StatefulWidget {
   final DutyState state;
   const _PanicCard({required this.state});
+
+  @override
+  State<_PanicCard> createState() => _PanicCardState();
+}
+
+class _PanicCardState extends State<_PanicCard> {
+  String _dipilih = 'UMUM';
+
+  _JenisDarurat get _terpilih =>
+      _jenisDarurat.firstWhere((j) => j.kode == _dipilih, orElse: () => _jenisDarurat.last);
+
+  DutyState get state => widget.state;
 
   @override
   Widget build(BuildContext context) {
@@ -709,15 +745,62 @@ class _PanicCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Tekan bila menghadapi ancaman atau butuh bantuan segera. Posisi Anda langsung dikirim ke pusat komando.',
+            'Pilih jenis kejadian, lalu tekan dan tahan. Pusat komando, klien, divisi penanggap, dan sirene di tiang menerima sinyalnya bersamaan.',
             style: TextStyle(color: P.muted, fontSize: 12, height: 1.5),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          const Kicker('Pilih Jenis Kejadian'),
+          const SizedBox(height: 8),
+          // Tiap jenis diteruskan ke divisi penanggap yang berbeda, sehingga
+          // yang datang adalah orang yang memang menangani kejadian itu.
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _jenisDarurat.map((j) {
+              final aktif = _dipilih == j.kode;
+              return GestureDetector(
+                onTap: () => setState(() => _dipilih = j.kode),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: aktif ? j.warna.withOpacity(.18) : P.abyss,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: aktif ? j.warna.withOpacity(.6) : P.line),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(j.ikon, size: 15, color: aktif ? j.warna : P.muted),
+                      const SizedBox(width: 7),
+                      Text(
+                        j.nama,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: aktif ? j.warna : P.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _terpilih.keterangan,
+            style: const TextStyle(color: P.muted, fontSize: 10.5, height: 1.4),
+          ),
+          const SizedBox(height: 14),
           // FR-PAN-001: sinyal dikirim setelah tombol ditekan dan ditahan,
           // sehingga tidak terpicu oleh sentuhan tak sengaja di dalam saku.
           _TombolTahan(
             aktif: siteId != null,
-            onSelesai: () => context.read<DutyBloc>().add(DutyPanicTriggered(siteId!)),
+            warna: _terpilih.warna,
+            label: 'TEKAN & TAHAN — ${_terpilih.nama.toUpperCase()}',
+            onSelesai: () =>
+                context.read<DutyBloc>().add(DutyPanicTriggered(siteId!, type: _dipilih)),
           ),
         ],
       ),
@@ -733,7 +816,14 @@ class _PanicCard extends StatelessWidget {
 class _TombolTahan extends StatefulWidget {
   final bool aktif;
   final VoidCallback onSelesai;
-  const _TombolTahan({required this.aktif, required this.onSelesai});
+  final Color warna;
+  final String label;
+  const _TombolTahan({
+    required this.aktif,
+    required this.onSelesai,
+    this.warna = P.danger,
+    this.label = 'TEKAN & TAHAN 2,5 DETIK',
+  });
 
   @override
   State<_TombolTahan> createState() => _TombolTahanState();
@@ -809,10 +899,10 @@ class _TombolTahanState extends State<_TombolTahan> with SingleTickerProviderSta
                 // Lapis dasar tombol
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: widget.aktif ? P.danger.withOpacity(.22) : P.panel2,
+                    color: widget.aktif ? widget.warna.withOpacity(.22) : P.panel2,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: widget.aktif ? P.danger.withOpacity(.55) : P.line,
+                      color: widget.aktif ? widget.warna.withOpacity(.55) : P.line,
                     ),
                   ),
                 ),
@@ -823,7 +913,7 @@ class _TombolTahanState extends State<_TombolTahan> with SingleTickerProviderSta
                     alignment: Alignment.centerLeft,
                     child: FractionallySizedBox(
                       widthFactor: v.clamp(0.0, 1.0),
-                      child: const ColoredBox(color: P.danger),
+                      child: ColoredBox(color: widget.warna),
                     ),
                   ),
                 ),
@@ -842,7 +932,7 @@ class _TombolTahanState extends State<_TombolTahan> with SingleTickerProviderSta
                             ? 'SINYAL TERKIRIM'
                             : menahan
                                 ? 'TAHAN TERUS… ${((1 - v) * 2.5).toStringAsFixed(1)} DETIK'
-                                : 'TEKAN & TAHAN 2,5 DETIK',
+                                : widget.label,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w900,

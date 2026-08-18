@@ -65,7 +65,7 @@ router.post('/start', allow(...COMMAND, 'GUARD'), async (req, res) => {
       totalCheckpoints: route.checkpoints.length,
     },
     include: {
-      route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+      route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } },
       site: { select: { id: true, name: true } },
       guard: { select: { id: true, name: true, avatarUrl: true } },
     },
@@ -77,6 +77,9 @@ router.post('/start', allow(...COMMAND, 'GUARD'), async (req, res) => {
 });
 
 const scanSchema = z.object({
+  /// Waktu yang dilaporkan perangkat bila catatan ini sempat mengantre
+  /// tanpa jaringan; waktu resmi tetap milik server (BRULE-008).
+  offlineAt: z.string().optional().nullable(),
   /** Isi salah satu: kode QR/NFC hasil pindai, atau id titik patroli */
   code: z.string().optional(),
   checkpointId: z.string().optional(),
@@ -94,7 +97,7 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
   const session = await prisma.patrolSession.findUnique({
     where: { id: req.params.id },
-    include: { route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } } },
+    include: { route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } } },
   });
   if (!session) return res.status(404).json({ message: 'Sesi patroli tidak ditemukan' });
   if (session.guardId !== req.user!.sub && req.user!.role === 'GUARD')
@@ -167,6 +170,7 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       isLate,
       distanceFlag,
       orderIndex: link.orderIndex,
+      offlineAt: p.data.offlineAt ? new Date(p.data.offlineAt) : null,
     },
     include: { checkpoint: true },
   });
@@ -289,7 +293,7 @@ router.get('/active', allow(...COMMAND, 'CLIENT'), async (req, res) => {
     orderBy: { startedAt: 'asc' },
     include: {
       guard: { select: { id: true, name: true, avatarUrl: true, phone: true } },
-      route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+      route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } },
       site: { select: { id: true, name: true, lat: true, lng: true } },
       scans: { select: { checkpointId: true, scannedAt: true, condition: true } },
     },
@@ -302,7 +306,7 @@ router.get('/my/active', async (req, res) => {
   const s = await prisma.patrolSession.findFirst({
     where: { guardId: req.user!.sub, status: 'IN_PROGRESS' },
     include: {
-      route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+      route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } },
       site: true,
       scans: true,
     },
@@ -316,7 +320,7 @@ router.get('/:id', async (req, res) => {
     include: {
       guard: { select: { id: true, name: true, employeeId: true, avatarUrl: true, phone: true } },
       site: true,
-      route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+      route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } },
       scans: { include: { checkpoint: true }, orderBy: { scannedAt: 'asc' } },
       pings: { orderBy: { recordedAt: 'asc' }, take: 1000 },
     },

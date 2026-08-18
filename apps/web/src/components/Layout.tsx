@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Map, Route, ShieldCheck, CalendarDays, Fingerprint, AlertTriangle,
   Users, Building2, MapPin, UserSquare2, Car, ClipboardList, Boxes, Megaphone,
   BarChart3, ScrollText, LogOut, Bell, Menu, Radio, Siren, ChevronsLeft, ChevronsRight, Search,
-  ClipboardCheck, Trophy, Layers, CalendarClock,
+  ClipboardCheck, Trophy, Layers, CalendarClock, Volume2,
 } from 'lucide-react';
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
@@ -58,6 +58,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/site', label: 'Site & Lokasi', icon: MapPin, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/titik', label: 'Titik & Rute', icon: ShieldCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/lantai', label: 'Lantai & Regu', icon: Layers, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
+      { to: '/sirene', label: 'Darurat & Sirene', icon: Volume2, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/pengumuman', label: 'Pengumuman', icon: Megaphone },
     ],
   },

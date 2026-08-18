@@ -131,7 +131,7 @@ router.get('/my/today', async (req, res) => {
       shift: true,
       site: true,
       attendance: true,
-      route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+      route: { include: { checkpoints: { include: { checkpoint: { include: { floor: { select: { id: true, name: true, level: true } } } } }, orderBy: { orderIndex: 'asc' } } } },
     },
     orderBy: { date: 'asc' },
   });
@@ -141,6 +141,9 @@ router.get('/my/today', async (req, res) => {
 /* ─────────────────────────── PRESENSI ─────────────────────────── */
 
 const checkInSchema = z.object({
+  /// Waktu yang dilaporkan perangkat bila catatan ini sempat mengantre
+  /// tanpa jaringan; waktu resmi tetap milik server (BRULE-008).
+  offlineAt: z.string().optional().nullable(),
   scheduleId: z.string().optional().nullable(),
   siteId: z.string(),
   lat: z.number(),
@@ -233,6 +236,7 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
       status,
       lateMinutes,
       notes: notes || null,
+      offlineAt: p.data.offlineAt ? new Date(p.data.offlineAt) : null,
     },
     include: { guard: { select: { id: true, name: true, avatarUrl: true } }, site: { select: { name: true } } },
   });

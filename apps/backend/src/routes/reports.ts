@@ -585,6 +585,43 @@ router.get('/map', async (req, res) => {
       ? presenceSemua.filter((p) => p.siteId && idsSite.has(p.siteId))
       : presenceSemua;
 
+  // Penanda lantai: keberadaan di dalam gedung dibaca dari titik QR terakhir
+  // yang dipindai, karena GPS tidak dapat membedakan lantai.
+  const idsHadir = presence.map((x: any) => x.guardId).filter(Boolean);
+  const scanTerakhir = idsHadir.length
+    ? await prisma.patrolScan.findMany({
+        where: {
+          session: { guardId: { in: idsHadir } },
+          scannedAt: { gte: new Date(Date.now() - 12 * 3600 * 1000) },
+          checkpoint: { floorId: { not: null } },
+        },
+        orderBy: { scannedAt: 'desc' },
+        take: 600,
+        select: {
+          scannedAt: true,
+          checkpoint: {
+            select: { name: true, planX: true, planY: true, floor: { select: { id: true, name: true, level: true } } },
+          },
+          session: { select: { guardId: true } },
+        },
+      })
+    : [];
+  const lantaiPer = new Map<string, any>();
+  for (const s of scanTerakhir) {
+    const g = s.session?.guardId;
+    if (!g || lantaiPer.has(g)) continue;
+    lantaiPer.set(g, {
+      floorId: s.checkpoint.floor?.id ?? null,
+      floorName: s.checkpoint.floor?.name ?? null,
+      floorLevel: s.checkpoint.floor?.level ?? null,
+      checkpointName: s.checkpoint.name,
+      planX: s.checkpoint.planX,
+      planY: s.checkpoint.planY,
+      at: s.scannedAt,
+    });
+  }
+  const presenceBerlantai = presence.map((x: any) => ({ ...x, lantai: lantaiPer.get(x.guardId) ?? null }));
+
   // FR-GPS-001: jejak pergerakan terakhir tiap anggota yang sedang bertugas.
   const sejak = new Date(Date.now() - 90 * 60 * 1000);
   const idsAnggota = presence.map((p) => p.guardId).filter(Boolean) as string[];
@@ -611,7 +648,7 @@ router.get('/map', async (req, res) => {
       points: titik.slice(-40),
     }));
 
-  res.json({ sites, presence, panics, tracks });
+  res.json({ sites, presence: presenceBerlantai, panics, tracks });
 });
 
 /**
