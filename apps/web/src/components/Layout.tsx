@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Map, Route, ShieldCheck, CalendarDays, Fingerprint, AlertTriangle,
   Users, Building2, MapPin, UserSquare2, Car, ClipboardList, Boxes, Megaphone,
   BarChart3, ScrollText, LogOut, Bell, Menu, Radio, Siren, ChevronsLeft, ChevronsRight, Search,
-  ClipboardCheck, Trophy, Layers, CalendarClock, Volume2,
+  ClipboardCheck, Trophy, Layers, CalendarClock, Volume2, ShieldAlert,
 } from 'lucide-react';
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
@@ -67,6 +67,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/kpi', label: 'Penilaian Kinerja', icon: Trophy, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/laporan', label: 'Laporan & Ekspor', icon: BarChart3 },
+      { to: '/integritas', label: 'Integritas & Perangkat', icon: ShieldAlert, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/jejak-audit', label: 'Jejak Audit', icon: ScrollText, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
     ],
   },

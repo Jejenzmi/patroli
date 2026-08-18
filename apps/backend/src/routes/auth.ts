@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { signToken } from '../lib/jwt';
 import { auth } from '../middleware/auth';
 import { audit } from '../lib/notify';
+import { periksaPerangkat } from '../lib/perangkat';
 
 const router = Router();
 
@@ -13,6 +14,19 @@ const loginSchema = z.object({
   password: z.string().min(4),
   /** 'web' untuk pusat komando, 'mobile' untuk aplikasi lapangan */
   platform: z.enum(['web', 'mobile']).optional(),
+  /// Penanda perangkat dari aplikasi lapangan; akun terikat padanya.
+  device: z
+    .object({
+      deviceId: z.string().optional().nullable(),
+      fingerprint: z.string().optional().nullable(),
+      label: z.string().optional().nullable(),
+      platform: z.string().optional().nullable(),
+      osVersion: z.string().optional().nullable(),
+      appVersion: z.string().optional().nullable(),
+      isPhysical: z.boolean().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
 });
 
 router.post('/login', async (req, res) => {
@@ -43,6 +57,13 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({
       message: 'Akun anggota dilayani lewat aplikasi lapangan PATROLI, bukan portal web.',
     });
+  // Satu akun, satu ponsel. Diperiksa hanya untuk aplikasi lapangan;
+  // portal web memang dipakai berpindah-pindah komputer.
+  if (platform === 'mobile') {
+    const hasil = await periksaPerangkat(user.id, (parsed.data.device ?? {}) as any, req.ip);
+    if (!hasil.ok) return res.status(403).json({ message: hasil.pesan, code: 'PERANGKAT_TIDAK_DIKENAL' });
+  }
+
   if (platform === 'mobile' && user.role === 'CLIENT')
     return res.status(403).json({
       message: 'Akun klien dilayani lewat portal web patroli.gokar.id, bukan aplikasi lapangan.',

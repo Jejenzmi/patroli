@@ -79,6 +79,25 @@ enum PanicStatus {
 
 /// Jenis keadaan darurat. Tiap jenis diteruskan ke divisi penanggap
 /// yang berbeda, sesuai pemetaan pada PanicRoute.
+/// Jenis pelanggaran integritas yang terdeteksi sistem.
+enum IntegrityType {
+  /// Perangkat melaporkan koordinat palsu (mock location)
+  LOKASI_PALSU
+  /// Perpindahan mustahil menurut jarak dan waktu antar-catatan
+  KECEPATAN_TIDAK_WAJAR
+  /// Aplikasi berjalan di emulator, bukan ponsel sungguhan
+  EMULATOR
+  /// Masuk dari perangkat yang tidak terdaftar untuk akun ini
+  PERANGKAT_ASING
+  /// Perangkat terindikasi di-root
+  PERANGKAT_ROOT
+}
+
+enum DeviceStatus {
+  AKTIF
+  DIBLOKIR
+}
+
 enum PanicType {
   UMUM
   KEBAKARAN
@@ -220,6 +239,8 @@ model User {
   @@index([role, status])
   divisionId       String?
   division         EmergencyDivision? @relation("DivisionMembers", fields: [divisionId], references: [id])
+  devices          UserDevice[]
+  integrityEvents  IntegrityEvent[]
 }
 
 model Client {
@@ -285,6 +306,7 @@ model Site {
   divisions   EmergencyDivision[]
   panicRoutes PanicRoute[]
   alarms      AlarmDevice[]
+  integrityEvents IntegrityEvent[]
 }
 
 model Zone {
@@ -898,6 +920,8 @@ model AttendanceAttempt {
 
   @@index([guardId, createdAt])
   @@index([siteId, createdAt])
+  deviceId  String?
+  mocked    Boolean  @default(false)
 }
 
 model Setting {
@@ -990,4 +1014,62 @@ model AlarmEvent {
 
   @@index([deviceId, createdAt])
   @@index([panicId])
+}
+
+
+/// Perangkat yang terikat pada satu akun.
+///
+/// Satu anggota hanya boleh memakai satu ponsel. Pengikatan terjadi pada masuk
+/// pertama, dan hanya administrator yang dapat melepaskannya — sehingga akun
+/// tidak dapat dipinjamkan begitu saja kepada rekan.
+model UserDevice {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Penanda yang dibuat aplikasi dan disimpan di perangkat
+  deviceId     String
+  /// Ciri perangkat (merek|model|papan|versi) untuk mengenali ponsel yang sama
+  /// setelah aplikasi dipasang ulang
+  fingerprint  String?
+  label        String?
+  platform     String?
+  osVersion    String?
+  appVersion   String?
+  status       DeviceStatus @default(AKTIF)
+  isPhysical   Boolean      @default(true)
+  firstSeenAt  DateTime     @default(now())
+  lastSeenAt   DateTime     @default(now())
+  releasedById String?
+  note         String?
+
+  @@unique([userId, deviceId])
+  @@index([deviceId])
+}
+
+/// Catatan pelanggaran integritas: lokasi palsu, perpindahan mustahil,
+/// emulator, atau masuk dari perangkat asing.
+///
+/// Tindakannya ditolak, tetapi percobaannya tetap disimpan — justru di situ
+/// nilainya bagi pengawas.
+model IntegrityEvent {
+  id        String        @id @default(cuid())
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  siteId    String?
+  site      Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  type      IntegrityType
+  /// Tindakan yang sedang dicoba: PRESENSI_MASUK, PINDAI_TITIK, dan seterusnya
+  action    String
+  lat       Float?
+  lng       Float?
+  accuracyM Float?
+  speedKph  Float?
+  deviceId  String?
+  detail    String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }

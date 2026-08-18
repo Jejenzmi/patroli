@@ -1,7 +1,7 @@
 name: patroli_mobile
 description: PATROLI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
 publish_to: 'none'
-version: 1.3.0+4
+version: 1.4.0+5
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -28,6 +28,10 @@ dependencies:
   # sendiri begitu jaringan tersambung kembali.
   connectivity_plus: ^6.0.5
   sqflite: ^2.3.3+1
+  # Mengenali perangkat agar akun terikat pada satu ponsel, dan mengetahui
+  # apakah aplikasi berjalan di ponsel sungguhan atau emulator.
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
   path: ^1.9.0
   path_provider: ^2.1.4
 

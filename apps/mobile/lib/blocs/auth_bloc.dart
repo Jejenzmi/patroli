@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../core/api.dart';
+import '../core/perangkat.dart';
 import '../models/models.dart';
 
 /* ── Peristiwa ── */
@@ -64,7 +65,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>((e, emit) async {
       emit(const AuthState(status: AuthStatus.loading));
       try {
+        // Identitas perangkat dikirim agar akun terikat pada satu ponsel.
+        final perangkat = await Perangkat.i.info();
         final r = await Api.i.post('/auth/login', {
+          'device': perangkat,
           'username': e.username,
           'password': e.password,
           // Penanda platform: server menolak akun klien di aplikasi lapangan.

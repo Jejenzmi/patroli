@@ -8,6 +8,7 @@ import { emitOps } from '../lib/ws';
 import { audit, notifyUsers } from '../lib/notify';
 import { withSiteScope, bolehSite } from '../lib/scope';
 import { cocokkanWajah, wajahAktif } from '../lib/face';
+import { periksaLokasi } from '../lib/integritas';
 
 const router = Router();
 router.use(auth);
@@ -144,6 +145,11 @@ const checkInSchema = z.object({
   /// Waktu yang dilaporkan perangkat bila catatan ini sempat mengantre
   /// tanpa jaringan; waktu resmi tetap milik server (BRULE-008).
   offlineAt: z.string().optional().nullable(),
+  /// Tanda dari sistem operasi bahwa koordinat berasal dari lokasi tiruan.
+  mocked: z.boolean().optional(),
+  accuracyM: z.number().optional().nullable(),
+  isPhysical: z.boolean().optional(),
+  deviceId: z.string().optional().nullable(),
   scheduleId: z.string().optional().nullable(),
   siteId: z.string(),
   lat: z.number(),
@@ -165,6 +171,21 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
 
   const distance = Math.round(haversineMeters(lat, lng, site.lat, site.lng));
 
+  // Keaslian koordinat diperiksa lebih dulu: presensi dengan lokasi palsu
+  // ditolak, tetapi percobaannya tetap disimpan sebagai bukti.
+  const periksa = await periksaLokasi({
+    userId: guardId,
+    siteId,
+    action: 'PRESENSI_MASUK',
+    lat,
+    lng,
+    accuracyM: p.data.accuracyM,
+    mocked: p.data.mocked,
+    isPhysical: p.data.isPhysical,
+    deviceId: p.data.deviceId,
+    ip: req.ip,
+  });
+
   // FR-ATT-006 / BRULE-004: setiap penolakan disimpan sebagai bukti.
   const catatGagal = (result: any, reason: string, faceScore?: number | null) =>
     prisma.attendanceAttempt.create({
@@ -180,6 +201,24 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
         photoUrl: photoUrl || null,
       },
     });
+
+  if (periksa.ditolak) {
+    await prisma.attendanceAttempt.create({
+      data: {
+        guardId,
+        siteId,
+        result: 'LAINNYA',
+        reason: periksa.pesan!,
+        lat,
+        lng,
+        distanceM: distance,
+        photoUrl: photoUrl || null,
+        deviceId: p.data.deviceId || null,
+        mocked: periksa.type === 'LOKASI_PALSU',
+      },
+    });
+    return res.status(422).json({ message: periksa.pesan, code: periksa.type });
+  }
 
   if (distance > site.radiusM) {
     const pesan = `Anda berada ${distance} m dari pos (batas ${site.radiusM} m). Presensi harus dilakukan di area site.`;

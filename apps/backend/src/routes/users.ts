@@ -207,4 +207,97 @@ router.get('/:id/performance', async (req, res) => {
   });
 });
 
+/* ═══════════════ PERANGKAT TERIKAT & PELANGGARAN INTEGRITAS ═══════════════ */
+
+/** Daftar perangkat yang terikat pada akun. */
+router.get('/devices/list', allow(...COMMAND), async (req, res) => {
+  const where: any = {};
+  if (req.query.userId) where.userId = String(req.query.userId);
+  const rows = await prisma.userDevice.findMany({
+    where,
+    orderBy: { lastSeenAt: 'desc' },
+    take: 300,
+    include: {
+      user: {
+        select: { id: true, name: true, employeeId: true, role: true, avatarUrl: true,
+                  homeSite: { select: { id: true, name: true } } },
+      },
+    },
+  });
+  res.json(rows);
+});
+
+/**
+ * Melepaskan ikatan perangkat.
+ *
+ * Dipakai ketika petugas berganti ponsel atau ponselnya hilang. Masuk
+ * berikutnya akan mengikat ponsel yang baru.
+ */
+router.delete('/devices/:id', allow(...ADMIN_ONLY), async (req, res) => {
+  const d = await prisma.userDevice.findUnique({ where: { id: req.params.id } });
+  if (!d) return res.status(404).json({ message: 'Perangkat tidak ditemukan' });
+  await prisma.userDevice.delete({ where: { id: d.id } });
+  await audit(req.user!.sub, 'RELEASE_DEVICE', 'UserDevice', d.id, { userId: d.userId }, req.ip);
+  res.json({ message: 'Ikatan perangkat dilepaskan' });
+});
+
+/** Memblokir atau mengaktifkan kembali sebuah perangkat. */
+router.put('/devices/:id', allow(...ADMIN_ONLY), async (req, res) => {
+  const status = String(req.body?.status || '').toUpperCase() === 'DIBLOKIR' ? 'DIBLOKIR' : 'AKTIF';
+  const d = await prisma.userDevice.update({
+    where: { id: req.params.id },
+    data: { status: status as any, note: req.body?.note ?? undefined, releasedById: req.user!.sub },
+  });
+  await audit(req.user!.sub, 'UPDATE_DEVICE', 'UserDevice', d.id, { status }, req.ip);
+  res.json(d);
+});
+
+/** Riwayat pelanggaran integritas: lokasi palsu, perpindahan mustahil, dan lainnya. */
+router.get('/integrity/events', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  const where: any = {};
+  if (req.query.type) where.type = String(req.query.type);
+  if (req.query.userId) where.userId = String(req.query.userId);
+  const boleh = await allowedSiteIds(req);
+  if (boleh !== null) where.siteId = { in: boleh.length ? boleh : ['-tidak-boleh-'] };
+
+  const rows = await prisma.integrityEvent.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(300, Number(req.query.limit) || 100),
+    include: {
+      user: { select: { id: true, name: true, employeeId: true, avatarUrl: true, role: true } },
+      site: { select: { id: true, name: true } },
+    },
+  });
+  res.json(rows);
+});
+
+/** Ringkasan pelanggaran untuk kartu di halaman pemantauan. */
+router.get('/integrity/summary', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  const sejak = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+  const rows = await prisma.integrityEvent.groupBy({
+    by: ['type'],
+    where: { createdAt: { gte: sejak } },
+    _count: { _all: true },
+  });
+  const pelaku = await prisma.integrityEvent.groupBy({
+    by: ['userId'],
+    where: { createdAt: { gte: sejak }, userId: { not: null } },
+    _count: { _all: true },
+    orderBy: { _count: { userId: 'desc' } },
+    take: 5,
+  });
+  const nama = await prisma.user.findMany({
+    where: { id: { in: pelaku.map((p) => p.userId!).filter(Boolean) } },
+    select: { id: true, name: true, employeeId: true },
+  });
+  res.json({
+    perJenis: rows.map((r) => ({ type: r.type, jumlah: r._count._all })),
+    teratas: pelaku.map((p) => ({
+      user: nama.find((n) => n.id === p.userId) ?? null,
+      jumlah: p._count._all,
+    })),
+  });
+});
+
 export default router;

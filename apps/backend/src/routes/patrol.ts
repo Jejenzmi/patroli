@@ -8,6 +8,7 @@ import { audit, notifyCommand } from '../lib/notify';
 import { setPresence } from '../lib/redis';
 import { bolehSite, isCommand } from '../lib/scope';
 import { startOfDay, endOfDay } from '../lib/time';
+import { catatPelanggaran, periksaLokasi } from '../lib/integritas';
 
 const router = Router();
 router.use(auth);
@@ -80,6 +81,10 @@ const scanSchema = z.object({
   /// Waktu yang dilaporkan perangkat bila catatan ini sempat mengantre
   /// tanpa jaringan; waktu resmi tetap milik server (BRULE-008).
   offlineAt: z.string().optional().nullable(),
+  mocked: z.boolean().optional(),
+  accuracyM: z.number().optional().nullable(),
+  isPhysical: z.boolean().optional(),
+  deviceId: z.string().optional().nullable(),
   /** Isi salah satu: kode QR/NFC hasil pindai, atau id titik patroli */
   code: z.string().optional(),
   checkpointId: z.string().optional(),
@@ -134,6 +139,21 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
   if (session.route.requirePhoto && !p.data.photoUrl)
     return res.status(422).json({ message: 'Rute ini mewajibkan foto bukti di setiap titik' });
+
+  // Keaslian koordinat: pemindaian dengan lokasi palsu ditolak dan dicatat.
+  const periksa = await periksaLokasi({
+    userId: req.user!.sub,
+    siteId: session.siteId,
+    action: 'PINDAI_TITIK',
+    lat: p.data.lat,
+    lng: p.data.lng,
+    accuracyM: p.data.accuracyM,
+    mocked: p.data.mocked,
+    isPhysical: p.data.isPhysical,
+    deviceId: p.data.deviceId,
+    ip: req.ip,
+  });
+  if (periksa.ditolak) return res.status(422).json({ message: periksa.pesan, code: periksa.type });
 
   // Verifikasi jarak GPS terhadap koordinat titik patroli.
   let distanceM: number | null = null;
@@ -345,9 +365,26 @@ router.post('/tracking/ping', allow(...COMMAND, 'GUARD'), async (req, res) => {
     speedKph: z.number().optional(),
     batteryPct: z.number().int().optional(),
     sessionId: z.string().optional().nullable(),
+    mocked: z.boolean().optional(),
+    deviceId: z.string().optional().nullable(),
   });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Koordinat wajib dikirim' });
+
+  if (p.data.mocked) {
+    await catatPelanggaran({
+      userId: req.user!.sub,
+      type: 'LOKASI_PALSU',
+      action: 'JEJAK_LOKASI',
+      lat: p.data.lat,
+      lng: p.data.lng,
+      accuracyM: p.data.accuracyM ?? null,
+      deviceId: p.data.deviceId ?? null,
+      detail: 'Jejak posisi berkala berasal dari penyedia lokasi tiruan',
+      ip: req.ip,
+    });
+    return res.status(422).json({ message: 'Lokasi palsu terdeteksi', code: 'LOKASI_PALSU' });
+  }
 
   const ping = await prisma.locationPing.create({
     data: {

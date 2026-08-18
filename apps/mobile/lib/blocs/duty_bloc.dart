@@ -5,6 +5,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../core/api.dart';
 import '../core/geo.dart';
+import '../core/perangkat.dart';
 import '../core/sinkron.dart';
 import '../models/models.dart';
 
@@ -151,6 +152,48 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
 
   Timer? _jejak;
 
+  /// Mengambil posisi beserta penilaian keasliannya.
+  ///
+  /// Koordinat tiruan tidak dibuang diam-diam: posisinya tetap diambil dan
+  /// dikirim dengan tanda `mocked`, supaya percobaannya tercatat di pusat
+  /// komando meski tindakannya sendiri ditolak.
+  Future<({double? lat, double? lng, double? akurasi, bool palsu})> _posisi({
+    bool wajib = true,
+    bool highAccuracy = true,
+  }) async {
+    try {
+      final pos = await Geo.current(highAccuracy: highAccuracy);
+      return (lat: pos.latitude, lng: pos.longitude, akurasi: pos.accuracy, palsu: false);
+    } on LokasiPalsu catch (e) {
+      return (
+        lat: e.posisi.latitude,
+        lng: e.posisi.longitude,
+        akurasi: e.posisi.accuracy,
+        palsu: true
+      );
+    } catch (_) {
+      if (wajib) rethrow;
+      return (lat: null, lng: null, akurasi: null, palsu: false);
+    }
+  }
+
+  /// Keterangan perangkat yang disertakan pada tiap tindakan lapangan.
+  Future<Map<String, dynamic>> _bukti(
+      ({double? lat, double? lng, double? akurasi, bool palsu}) p) async {
+    return {
+      'lat': p.lat,
+      'lng': p.lng,
+      'accuracyM': p.akurasi,
+      'mocked': p.palsu,
+      'isPhysical': await Perangkat.i.fisik(),
+      'deviceId': await Perangkat.i.id(),
+    };
+  }
+
+  static const _pesanPalsu =
+      'Lokasi palsu terdeteksi. Matikan aplikasi pengubah lokasi lalu ulangi — '
+      'percobaan ini dilaporkan ke pengawas.';
+
   /// FR-GPS-004: selama berstatus masuk, posisi dikirim berkala agar pusat
   /// kendali dapat memantau sebaran personel tanpa perlu menunggu pemindaian.
   void _mulaiJejak() {
@@ -160,16 +203,15 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
   Future<void> kirimJejak() async {
     if (!state.onDuty) return;
     try {
-      final pos = await Geo.current();
+      final p = await _posisi(wajib: false, highAccuracy: false);
+      if (p.lat == null) return;
       await Api.i.post('/patrols/tracking/ping', {
-        'lat': pos.latitude,
-        'lng': pos.longitude,
-        'accuracyM': pos.accuracy,
-        'speedKph': pos.speed * 3.6,
+        ...await _bukti(p),
         'sessionId': state.session?.id,
       });
     } catch (_) {
       // Jejak bersifat pelengkap: kegagalan jaringan tidak mengganggu tugas.
+      // Jejak yang ditolak karena lokasi palsu sudah tercatat di server.
     }
   }
 
@@ -204,7 +246,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
   Future<void> _checkIn(DutyCheckedIn e, Emitter<DutyState> emit) async {
     emit(state.copyWith(loading: true, error: null));
     try {
-      final pos = await Geo.current();
+      final p = await _posisi();
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/schedules/attendance/check-in',
         label: 'Presensi masuk',
@@ -212,13 +254,15 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
         folderBerkas: 'presensi',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {
+          ...await _bukti(p),
           'siteId': e.siteId,
           'scheduleId': e.scheduleId,
-          'lat': pos.latitude,
-          'lng': pos.longitude,
           if (e.photoUrl != null) 'photoUrl': e.photoUrl,
         },
       );
+      if (p.palsu && !terkirim) {
+        return emit(state.copyWith(loading: false, error: _pesanPalsu));
+      }
       add(DutyRefreshed());
       emit(state.copyWith(
         loading: false,
@@ -237,7 +281,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
   Future<void> _checkOut(DutyCheckedOut e, Emitter<DutyState> emit) async {
     emit(state.copyWith(loading: true, error: null));
     try {
-      final pos = await Geo.current();
+      final p = await _posisi();
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/schedules/attendance/check-out',
         label: 'Presensi pulang',
@@ -245,8 +289,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
         folderBerkas: 'presensi',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {
-          'lat': pos.latitude,
-          'lng': pos.longitude,
+          ...await _bukti(p),
           if (e.photoUrl != null) 'photoUrl': e.photoUrl,
         },
       );
@@ -283,14 +326,8 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
   Future<void> _scan(DutyCheckpointScanned e, Emitter<DutyState> emit) async {
     emit(state.copyWith(loading: true, error: null));
     try {
-      double? lat, lng;
-      try {
-        final pos = await Geo.current();
-        lat = pos.latitude;
-        lng = pos.longitude;
-      } catch (_) {
-        // Titik tetap bisa dipindai lewat QR walau GPS lambat mengunci.
-      }
+      // Titik tetap bisa dipindai lewat QR walau GPS lambat mengunci.
+      final p = await _posisi(wajib: false);
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/patrols/${e.sessionId}/scan',
         label: 'Pemindaian titik',
@@ -298,16 +335,18 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
         folderBerkas: 'patroli',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {
+          ...await _bukti(p),
           'code': e.code,
           'checkpointId': e.checkpointId,
           'method': e.method,
-          'lat': lat,
-          'lng': lng,
           'note': e.note,
           if (e.photoUrl != null) 'photoUrl': e.photoUrl,
           'condition': e.condition,
         },
       );
+      if (p.palsu && !terkirim) {
+        return emit(state.copyWith(loading: false, error: _pesanPalsu));
+      }
 
       if (terkirim) {
         final s = await Api.i.getSinggah('/patrols/my/active');
@@ -367,25 +406,28 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
 
   Future<void> _panic(DutyPanicTriggered e, Emitter<DutyState> emit) async {
     try {
-      double? lat, lng;
+      // Sinyal darurat tidak boleh menunggu GPS. Bila posisi belum terkunci
+      // dalam lima detik, sinyal tetap dikirim tanpa koordinat — pusat kendali
+      // masih tahu siapa yang meminta bantuan dan di site mana. Koordinat
+      // tiruan pun tidak menghalangi sinyal: nyawa didahulukan, penyimpangan
+      // datanya cukup ditandai untuk ditinjau kemudian.
+      ({double? lat, double? lng, double? akurasi, bool palsu}) p;
       try {
-        // Sinyal darurat tidak boleh menunggu GPS. Bila posisi belum terkunci
-        // dalam lima detik, sinyal tetap dikirim tanpa koordinat — pusat
-        // kendali masih tahu siapa yang meminta bantuan dan di site mana.
-        final pos = await Geo.current(highAccuracy: false)
+        p = await _posisi(wajib: false, highAccuracy: false)
             .timeout(const Duration(seconds: 5));
-        lat = pos.latitude;
-        lng = pos.longitude;
-      } catch (_) {}
+      } catch (_) {
+        p = (lat: null, lng: null, akurasi: null, palsu: false);
+      }
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/incidents/panic/trigger',
         label: 'Sinyal darurat',
         isi: {
+          'lat': p.lat,
+          'lng': p.lng,
           'siteId': e.siteId,
-          'lat': lat,
-          'lng': lng,
           'message': e.message,
           'type': e.type,
+          'deviceId': await Perangkat.i.id(),
         },
       );
       emit(state.copyWith(

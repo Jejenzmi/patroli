@@ -1,9 +1,18 @@
 import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 
+/// Dilempar ketika koordinat berasal dari aplikasi pengubah lokasi.
+class LokasiPalsu implements Exception {
+  final Position posisi;
+  LokasiPalsu(this.posisi);
+  @override
+  String toString() =>
+      'Lokasi palsu terdeteksi. Matikan aplikasi pengubah lokasi (fake GPS) lalu ulangi.';
+}
+
 /// Layanan lokasi: izin, posisi terkini, dan hitung jarak.
 class Geo {
-  static Future<Position> current({bool highAccuracy = true}) async {
+  static Future<Position> current({bool highAccuracy = true, bool tolakPalsu = true}) async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('Layanan lokasi perangkat mati. Aktifkan GPS terlebih dahulu.');
     }
@@ -15,13 +24,26 @@ class Geo {
     if (perm == LocationPermission.deniedForever) {
       throw Exception('Izin lokasi diblokir permanen. Ubah lewat Pengaturan aplikasi.');
     }
-    return Geolocator.getCurrentPosition(
+    final pos = await Geolocator.getCurrentPosition(
       locationSettings: LocationSettings(
         accuracy: highAccuracy ? LocationAccuracy.best : LocationAccuracy.medium,
         timeLimit: const Duration(seconds: 25),
       ),
     );
+
+    // Android menandai koordinat yang berasal dari penyedia tiruan. Aplikasi
+    // menolaknya di tempat, tetapi server tetap diberi tahu lewat tanda
+    // `mocked` pada tiap tindakan supaya percobaannya tercatat.
+    if (tolakPalsu && pos.isMocked) {
+      throw LokasiPalsu(pos);
+    }
+    return pos;
   }
+
+  /// Mengambil posisi apa adanya, termasuk bila berasal dari lokasi tiruan.
+  /// Dipakai ketika percobaan pelanggaran justru perlu dilaporkan ke server.
+  static Future<Position> currentApaAdanya({bool highAccuracy = true}) =>
+      current(highAccuracy: highAccuracy, tolakPalsu: false);
 
   static Stream<Position> stream({int distanceFilter = 15}) => Geolocator.getPositionStream(
         locationSettings: LocationSettings(
