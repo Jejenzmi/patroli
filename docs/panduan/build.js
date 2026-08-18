@@ -205,14 +205,27 @@ part('Bagian A · Aplikasi Web', 'Peta Situasi', () => {
       ['Titik hijau bertanda centang', 'Titik patroli yang sudah dipindai.'],
       ['Penanda biru berdenyut', 'Posisi anggota yang sedang online.'],
       ['Penanda merah berdenyut', 'Sinyal darurat yang belum ditutup.'],
+      ['Garis putus-putus biru', 'Jejak pergerakan anggota selama 90 menit terakhir. Ketuk garisnya untuk melihat namanya.'],
     ]
   ));
+  s.push(note('Keterangan', 'Jejak hanya terbentuk selama anggota berstatus masuk. Di luar jam tugas aplikasi tidak mengirim posisi sama sekali.'));
   s.push(sub('Panel kanan'));
   s.push(steps([
     'Ketuk nama pada daftar <strong>Anggota Online</strong> untuk memusatkan peta ke posisi anggota tersebut.',
     'Ketuk baris pada <strong>Sinyal Darurat</strong> untuk melompat ke lokasi kejadian.',
     'Tombol <strong>Fokus darurat</strong> di kanan atas menyembunyikan penanda lain agar hanya sinyal darurat yang terlihat.',
   ]));
+  s.push(sub('Denah lantai'));
+  s.push(p('Di dalam gedung bertingkat, GPS tidak cukup teliti untuk menyebut lantai. Karena itu keberadaan anggota di dalam gedung dibaca dari <strong>titik QR terakhir yang ia pindai</strong> — satu-satunya keberadaan yang benar-benar terbukti.'));
+  s.push(steps([
+    'Tekan tombol <strong>Denah lantai</strong> di kanan atas halaman.',
+    'Pilih site pada kotak pilihan, lalu pilih lantainya.',
+    'Angka hijau pada tombol lantai menunjukkan berapa anggota yang terakhir terdeteksi di lantai itu.',
+    'Titik biru adalah titik QR; foto profil berdenyut adalah anggota. Arahkan tetikus ke fotonya untuk melihat titik dan waktu pemindaian terakhirnya.',
+    'Tekan <strong>Peta luar</strong> untuk kembali ke peta biasa.',
+  ]));
+  s.push(img('web-denah-lantai', 'Denah lantai dengan titik QR dan posisi anggota berdasarkan pemindaian terakhir.'));
+  s.push(warn('Perhatian', 'Posisi pada denah adalah <em>tempat terakhir yang terbukti</em>, bukan posisi terkini. Waktu pemindaian selalu ditampilkan agar tidak keliru dibaca sebagai lokasi saat ini. Riwayat 12 jam terakhir yang dipakai.'));
   s.push(tip('Kiat', 'Persentase baterai ponsel anggota ikut tampil pada daftar. Angka di bawah 20% ditandai merah — pertanda anggota perlu diingatkan sebelum ponselnya mati di tengah patroli.'));
   return s.join('\n');
 });
@@ -302,6 +315,7 @@ part('Bagian A · Aplikasi Web', 'Jadwal Jaga', () => {
   s.push(steps([
     'Tekan <strong>Tambah Jadwal</strong>.',
     'Pilih site, shift, dan rute patroli (rute boleh dikosongkan).',
+    'Isi <strong>instruksi khusus</strong> bila ada — kalimat ini muncul pada kartu jadwal di aplikasi anggota, mis. “dampingi teknisi lift pukul 10.00”.',
     'Pilih tanggal dan anggota.',
     'Tekan <strong>Simpan</strong> lalu setujui konfirmasi. Anggota menerima notifikasi jadwal baru.',
   ]));
@@ -310,6 +324,7 @@ part('Bagian A · Aplikasi Web', 'Jadwal Jaga', () => {
   s.push(steps([
     'Tekan <strong>Roster Massal</strong>.',
     'Pilih site, shift, dan rute.',
+    'Isi instruksi khusus bila berlaku untuk seluruh rentang tanggal tersebut.',
     'Tentukan rentang tanggal <strong>dari</strong> dan <strong>sampai</strong>.',
     'Pilih hari yang dikehendaki (mis. Senin–Jumat saja). Kosongkan bila untuk semua hari.',
     'Centang anggota yang dijadwalkan, lalu simpan.',
@@ -766,10 +781,11 @@ part('Bagian B · Aplikasi Lapangan', 'Insiden, Darurat, dan Pos Jaga', () => {
   s.push(sub('Tombol darurat'));
   s.push(steps([
     'Buka beranda, gulir ke kartu merah <strong>Tombol Darurat</strong>.',
-    'Ketuk <strong>KIRIM SINYAL DARURAT</strong>.',
-    'Setujui dialog konfirmasi. Posisi Anda langsung terkirim ke pusat komando dan seluruh supervisor.',
+    'Tekan tombolnya dan <strong>tahan selama 2,5 detik</strong>. Bilah merah akan terisi dan ponsel bergetar sebagai tanda penekanan terbaca.',
+    'Begitu bilah penuh, sinyal terkirim seketika beserta posisi Anda — tidak ada dialog yang perlu ditekan lagi.',
     'Tetap di tempat aman sampai menerima pemberitahuan bahwa bantuan sedang menuju lokasi.',
   ]));
+  s.push(note('Mengapa harus ditahan', 'Sinyal darurat tidak dikirim oleh satu sentuhan agar tidak terpicu tanpa sengaja saat ponsel berada di dalam saku. Bila Anda melepas tombol sebelum bilahnya penuh, tidak ada yang terkirim.'));
   s.push(warn('Perhatian', 'Gunakan hanya untuk keadaan darurat sungguhan. Setiap penekanan tercatat beserta nama dan koordinat Anda.'));
   s.push(sub('Buku tamu dan kendaraan'));
   s.push(steps([
@@ -900,6 +916,42 @@ part('Bagian D', 'Pemecahan Masalah', () => {
 });
 
 /* ═══════════════ LAMPIRAN ═══════════════ */
+part('Lampiran', 'Privasi dan Masa Simpan Data', () => {
+  const s = [];
+  s.push(p('Sistem ini mengumpulkan foto wajah dan riwayat lokasi anggota. Keduanya adalah data pribadi, sehingga penanganannya diatur dan dibatasi — bukan disimpan seadanya selamanya.'));
+  s.push(sub('Apa yang dikumpulkan dan untuk apa'));
+  s.push(table(
+    ['Data', 'Tujuan', 'Masa simpan bawaan'],
+    [
+      ['Template wajah', 'Mencocokkan swafoto presensi agar tidak ada titip absen', 'Selama anggota masih aktif; dihapus bersama pendaftaran wajahnya'],
+      ['Foto presensi masuk & pulang', 'Bukti kehadiran', '180 hari, setelah itu fotonya dihapus dan catatan kehadirannya tetap'],
+      ['Percobaan presensi yang ditolak', 'Penelusuran dugaan pelanggaran', '180 hari, foto dan barisnya dihapus bersamaan'],
+      ['Jejak lokasi', 'Pemantauan sebaran personel saat bertugas', '30 hari'],
+      ['Notifikasi yang sudah dibaca', 'Riwayat pemberitahuan', '90 hari'],
+    ]
+  ));
+  s.push(note('Keterangan', 'Angka masa simpan di atas adalah nilai bawaan dan dapat disesuaikan dengan kesepakatan dengan klien melalui pengaturan sistem. Pembersihan berjalan otomatis sekali sehari; berkas di penyimpanan ikut terhapus, bukan hanya barisnya di basis data.'));
+  s.push(sub('Pembatasan yang berlaku'));
+  s.push(ul([
+    '<strong>Pelacakan hanya saat bertugas</strong> — aplikasi mengirim posisi hanya selama anggota berstatus presensi masuk. Setelah presensi pulang, pengiriman berhenti sepenuhnya.',
+    '<strong>Template wajah tidak pernah meninggalkan server</strong> — aplikasi hanya menerima penanda “sudah terdaftar”, tidak pernah datanya.',
+    '<strong>Akses klien dibatasi</strong> — akun klien hanya melihat data pada site miliknya sendiri.',
+    '<strong>Penghapusan template wajah</strong> hanya dapat dilakukan administrator, dan tindakannya tercatat.',
+  ]));
+  s.push(sub('Penelusuran akses'));
+  s.push(p('Pembacaan data pribadi ikut dicatat di Jejak Audit, bukan hanya perubahannya:'));
+  s.push(table(
+    ['Tindakan tercatat', 'Kapan muncul'],
+    [
+      ['<code>READ_LOCATION_HISTORY</code>', 'Seseorang membuka riwayat lokasi anggota lain'],
+      ['<code>READ_ATTENDANCE_ATTEMPTS</code>', 'Seseorang membuka daftar percobaan presensi yang ditolak beserta fotonya'],
+      ['<code>ENROLL_FACE</code> / <code>RESET_FACE</code>', 'Pendaftaran atau penghapusan template wajah'],
+    ]
+  ));
+  s.push(warn('Sebelum digunakan', 'Pengambilan foto wajah dan lokasi memerlukan persetujuan tertulis dari tiap anggota. Siapkan formulir persetujuan yang menyebutkan tujuan penggunaan, masa simpan, dan hak anggota untuk meminta penghapusan datanya, lalu simpan sebagai lampiran administrasi kepegawaian.'));
+  return s.join('\n');
+});
+
 part('Lampiran', 'Daftar Istilah dan Akun', () => {
   const s = [];
   s.push(sub('Daftar istilah'));

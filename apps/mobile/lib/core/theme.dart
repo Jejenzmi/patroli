@@ -49,9 +49,13 @@ class IsiTerpusat extends StatelessWidget {
 const double kNavBarHeight = 74;
 
 /// Jarak aman bawah untuk isi tab: bilah navigasi + tonjolan tombol pindai.
-/// Dipakai agar tidak ada tombol atau kartu yang tertutup tombol pindai.
+///
+/// Tombol pindai berukuran 74 dp dan didok di tengah bilah setinggi 74 dp,
+/// sehingga menjulur 37 dp ke atas — ditambah cincin denyutnya menjadi 39 dp.
+/// Angka 52 memberi sisa ruang sekitar 13 dp agar baris terakhir tiap layar
+/// tidak tertutup tombol tersebut.
 double bottomInset(BuildContext context) =>
-    kNavBarHeight + MediaQuery.of(context).padding.bottom + 34;
+    kNavBarHeight + MediaQuery.of(context).padding.bottom + 52;
 
 ThemeData buildTheme() {
   final base = ThemeData.dark(useMaterial3: true);

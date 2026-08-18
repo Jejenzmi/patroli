@@ -381,6 +381,9 @@ router.post('/tracking/ping', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
 /** Jejak posisi satu anggota pada rentang waktu — untuk peta riwayat. */
 router.get('/tracking/history/:guardId', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  // NFR Audit Trail: pembacaan riwayat lokasi orang lain ikut tercatat.
+  if (req.params.guardId !== req.user!.sub)
+    await audit(req.user!.sub, 'READ_LOCATION_HISTORY', 'User', req.params.guardId, null, req.ip);
   if (!isCommand(req)) {
     const target = await prisma.user.findUnique({
       where: { id: req.params.guardId },

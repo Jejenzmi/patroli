@@ -225,6 +225,19 @@ export default function Schedule() {
               ))}
             </Select>
           </Field>
+          <Field
+            label="Instruksi khusus (opsional)"
+            hint="Terbaca anggota pada kartu jadwal di aplikasi lapangan."
+            className="sm:col-span-2"
+          >
+            <textarea
+              rows={2}
+              className="w-full"
+              placeholder="Mis. dampingi teknisi lift pukul 10.00, periksa pintu belakang tiap jam."
+              value={form.notes || ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </Field>
 
           {bulk ? (
             <>

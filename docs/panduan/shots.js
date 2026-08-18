@@ -70,6 +70,16 @@ async function tokenOf(username, password) {
   await ambil('/jejak-audit', 'audit');
   await ambil('/profil', 'profil');
 
+  // Denah lantai pada Peta Situasi
+  await web.goto(`${WEB}/peta`, { waitUntil: 'networkidle2' });
+  await sleep(3600);
+  await web.evaluate(() => {
+    [...document.querySelectorAll('button')].find((b) => /denah lantai/i.test(b.innerText))?.click();
+  });
+  await sleep(3000);
+  await web.screenshot({ path: `${OUT}/web-denah-lantai.png` });
+  console.log('  · web-denah-lantai');
+
   // Tab percobaan presensi yang ditolak
   await web.goto(`${WEB}/presensi`, { waitUntil: 'networkidle2' });
   await sleep(2600);
@@ -271,6 +281,11 @@ async function tokenOf(username, password) {
     }
     await kembali();
   }
+
+  // Kartu tombol darurat tekan-tahan
+  await keBeranda();
+  for (let i = 0; i < 6; i++) { await gulir(400); }
+  await potret('darurat');
 
   // Tab patroli, insiden, dan profil
   await keBeranda();

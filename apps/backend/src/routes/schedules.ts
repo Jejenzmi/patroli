@@ -78,10 +78,12 @@ router.post('/bulk', allow(...COMMAND), async (req, res) => {
     to: z.string(),
     /** 0=Minggu … 6=Sabtu; kosong berarti semua hari */
     weekdays: z.array(z.number().int().min(0).max(6)).optional(),
+    /** Instruksi khusus yang berlaku untuk seluruh penugasan pada rentang ini. */
+    notes: z.string().optional().nullable(),
   });
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Parameter roster massal tidak valid' });
-  const { siteId, shiftId, guardIds, routeId, from, to, weekdays } = p.data;
+  const { siteId, shiftId, guardIds, routeId, from, to, weekdays, notes } = p.data;
 
   const rows: any[] = [];
   let cursor = dayjs(from).tz(TZ).startOf('day');
@@ -90,7 +92,14 @@ router.post('/bulk', allow(...COMMAND), async (req, res) => {
   while (cursor.isBefore(end) || cursor.isSame(end)) {
     if (!weekdays?.length || weekdays.includes(cursor.day())) {
       for (const guardId of guardIds) {
-        rows.push({ siteId, shiftId, guardId, routeId: routeId || null, date: dateKey(cursor.toISOString()) });
+        rows.push({
+          siteId,
+          shiftId,
+          guardId,
+          routeId: routeId || null,
+          notes: notes || null,
+          date: dateKey(cursor.toISOString()),
+        });
       }
     }
     cursor = cursor.add(1, 'day');
@@ -308,6 +317,8 @@ router.get('/attendance', async (req, res) => {
 
 /** Percobaan presensi yang ditolak — bukti monitoring (FR-ATT-006). */
 router.get('/attendance/attempts', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  // NFR Audit Trail: percobaan presensi memuat foto wajah dan koordinat.
+  await audit(req.user!.sub, 'READ_ATTENDANCE_ATTEMPTS', 'AttendanceAttempt', null, req.query, req.ip);
   let where: any = {};
   if (req.query.siteId) where.siteId = String(req.query.siteId);
   if (req.query.guardId) where.guardId = String(req.query.guardId);

@@ -58,6 +58,7 @@ export default function MapView({
   guards = [],
   panics = [],
   track = [],
+  tracks = [],
   scannedIds = [],
   height = 460,
   zoom,
@@ -67,6 +68,8 @@ export default function MapView({
   guards?: MapGuard[];
   panics?: any[];
   track?: [number, number][];
+  /** Jejak pergerakan beberapa anggota sekaligus (FR-GPS-001). */
+  tracks?: { guardId: string; name: string; points: [number, number][] }[];
   scannedIds?: string[];
   height?: number | string;
   zoom?: number;
@@ -131,6 +134,20 @@ export default function MapView({
         {track.length > 1 && (
           <Polyline positions={track} pathOptions={{ color: '#22D3EE', weight: 3, opacity: 0.75 }} />
         )}
+
+        {tracks.map((t) => (
+          <Polyline
+            key={t.guardId}
+            positions={t.points}
+            pathOptions={{ color: '#22D3EE', weight: 2, opacity: 0.5, dashArray: '6 6' }}
+          >
+            <Popup>
+              <b>{t.name}</b>
+              <br />
+              <span style={{ fontSize: 11 }}>Jejak {t.points.length} titik, 90 menit terakhir</span>
+            </Popup>
+          </Polyline>
+        ))}
 
         {guards.map((g) => (
           <Marker key={g.guardId} position={[g.lat, g.lng]} icon={ICON_GUARD}>

@@ -149,6 +149,103 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     console.log('· tidak ada sinyal darurat aktif untuk diuji (dilewati)');
   }
 
+
+  /* 7. Dialog pada halaman modul BRD */
+
+  // 7a. Penerbitan tugas baru
+  await page.goto(`${BASE}/tugas`, { waitUntil: 'networkidle2' });
+  await sleep(1800);
+  const adaTugas = await clickByText('Tugas Baru');
+  const terisi = await page.evaluate(() => {
+    // Modal aplikasi memakai lapisan z-[1000]; isian di luar itu (mis. pencarian) diabaikan.
+    const modal = [...document.querySelectorAll('div')].find((x) => x.className?.includes?.('z-[1000]'));
+    if (!modal) return 'modal tidak terbuka';
+    const setNilai = (el, v) => {
+      const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement
+        : el.tagName === 'SELECT' ? window.HTMLSelectElement : window.HTMLInputElement;
+      Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, v);
+      el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+    };
+    for (const s of modal.querySelectorAll('select')) {
+      const opsi = [...s.options].find((o) => o.value);
+      if (opsi) setNilai(s, opsi.value);
+    }
+    const teks = modal.querySelector('input[type="text"], input:not([type])');
+    if (!teks) return 'kolom judul tidak ada';
+    setNilai(teks, 'Tugas uji dialog otomatis');
+    return 'ok';
+  });
+  if (adaTugas && terisi === 'ok') {
+    await sleep(400);
+    await clickByText('Kirim Tugas');
+    const t7 = await dialogText();
+    check('dialog konfirmasi tugas baru muncul', /tugas/i.test(t7), t7.slice(0, 80));
+    await clickDialog('batal');
+    const setelah = await (await fetch(`${BASE}/api/tasks?limit=300`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })).json();
+    check('tugas tidak dibuat saat dibatalkan',
+      !setelah.some((x) => x.title === 'Tugas uji dialog otomatis'));
+  } else {
+    check('dialog konfirmasi tugas baru muncul', false, terisi);
+  }
+
+  // 7b. Keputusan pengajuan cuti
+  await fetch(`${BASE}/api/tasks/leaves`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      type: 'IZIN', startDate: '2026-11-02T00:00:00.000Z', endDate: '2026-11-02T00:00:00.000Z',
+      reason: 'Pengajuan uji dialog otomatis',
+    }),
+  });
+  await page.goto(`${BASE}/cuti`, { waitUntil: 'networkidle2' });
+  await sleep(1800);
+  const adaPutusan = await page.evaluate(() => {
+    const baris = [...document.querySelectorAll('tr')].find((r) =>
+      r.innerText.includes('Pengajuan uji dialog otomatis'));
+    if (!baris) return false;
+    const tombol = [...baris.querySelectorAll('button')].find((b) => /setujui/i.test(b.innerText));
+    if (!tombol) return false;
+    tombol.click();
+    return true;
+  });
+  await sleep(800);
+  if (adaPutusan) {
+    const t8 = await dialogText();
+    check('dialog keputusan cuti muncul', /setuj/i.test(t8), t8.slice(0, 80));
+    await clickDialog('batal');
+    const daftar = await (await fetch(`${BASE}/api/tasks/leaves/list`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })).json();
+    const uji = daftar.find((x) => x.reason === 'Pengajuan uji dialog otomatis');
+    check('pengajuan tetap menunggu saat dibatalkan', uji?.status === 'DIAJUKAN', uji?.status);
+  } else {
+    check('dialog keputusan cuti muncul', false, 'baris pengajuan tidak ditemukan');
+  }
+
+  // 7c. Penilaian kinerja oleh pengawas
+  await page.goto(`${BASE}/kpi`, { waitUntil: 'networkidle2' });
+  await sleep(2200);
+  const adaNilai = await page.evaluate(() => {
+    const baris = [...document.querySelectorAll('tbody tr')];
+    for (const r of baris) {
+      const b = [...r.querySelectorAll('button')].find((x) => x.innerText.trim().toLowerCase() === 'nilai');
+      if (b) { b.click(); return true; }
+    }
+    return false;
+  });
+  await sleep(800);
+  if (adaNilai) {
+    await sleep(600);
+    await clickByText('Simpan Penilaian');
+    const t9 = await dialogText();
+    check('dialog konfirmasi penilaian muncul', /nilai|penilaian/i.test(t9), t9.slice(0, 80));
+    await clickDialog('batal');
+  } else {
+    check('dialog konfirmasi penilaian muncul', false, 'tombol Nilai tidak ditemukan');
+  }
+
   check('tidak ada galat halaman', errors.length === 0, errors.join(' | '));
 
   await browser.close();

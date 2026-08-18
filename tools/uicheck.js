@@ -22,6 +22,10 @@ const ROUTES = [
   ['/site', 'Site & Lokasi'],
   ['/titik', 'Titik, Rute & Shift'],
   ['/pengumuman', 'Pengumuman'],
+  ['/tugas', 'Tugas & Instruksi'],
+  ['/kpi', 'Penilaian Kinerja'],
+  ['/lantai', 'Lantai, Denah & Regu'],
+  ['/cuti', 'Cuti, Izin & Lembur'],
   ['/laporan', 'Laporan & Ekspor'],
   ['/jejak-audit', 'Jejak Audit'],
   ['/profil', 'Profil Saya'],
@@ -44,7 +48,11 @@ const ROUTES = [
   let fail = 0;
   let pass = 0;
 
-  for (const [route, expect] of ROUTES) {
+  const PERAN = process.env.PERAN || "SUPER_ADMIN";
+  const KHUSUS_KOMANDO = ["/titik", "/klien", "/jejak-audit", "/darurat", "/lantai"];
+  const daftar = PERAN === "CLIENT" ? ROUTES.filter((r) => !KHUSUS_KOMANDO.includes(r[0])) : ROUTES;
+
+  for (const [route, expect] of daftar) {
     const page = await browser.newPage();
     const errors = [];
     page.on('console', (m) => {

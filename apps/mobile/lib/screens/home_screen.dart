@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -518,6 +519,30 @@ class _TodaySchedule extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(color: P.cyan, fontSize: 11)),
+                          if (s.notes != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: P.amber.withOpacity(.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: P.amber.withOpacity(.28)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.push_pin_outlined, size: 13, color: P.amber),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      s.notes!,
+                                      style: const TextStyle(fontSize: 11.5, height: 1.45, color: P.ink),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -688,31 +713,151 @@ class _PanicCard extends StatelessWidget {
             style: TextStyle(color: P.muted, fontSize: 12, height: 1.5),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: P.danger, foregroundColor: Colors.white),
-              onPressed: siteId == null
-                  ? null
-                  : () async {
-                      final ok = await askConfirm(
-                        context,
-                        title: 'Kirim sinyal darurat?',
-                        message: 'Pusat komando dan seluruh supervisor akan langsung dihubungi, dan posisi Anda dibagikan.',
-                        detail: 'Gunakan hanya untuk keadaan darurat yang sungguh terjadi.',
-                        confirmLabel: 'KIRIM SINYAL',
-                        tone: DialogTone.danger,
-                      );
-                      if (ok && context.mounted) {
-                        context.read<DutyBloc>().add(DutyPanicTriggered(siteId));
-                      }
-                    },
-              icon: const Icon(Icons.campaign_outlined),
-              label: const Text('KIRIM SINYAL DARURAT'),
-            ),
+          // FR-PAN-001: sinyal dikirim setelah tombol ditekan dan ditahan,
+          // sehingga tidak terpicu oleh sentuhan tak sengaja di dalam saku.
+          _TombolTahan(
+            aktif: siteId != null,
+            onSelesai: () => context.read<DutyBloc>().add(DutyPanicTriggered(siteId!)),
           ),
         ],
       ),
+    );
+  }
+}
+
+/* ── Tombol darurat tekan-tahan (FR-PAN-001) ── */
+
+/// Sinyal darurat baru terkirim setelah tombol ditahan penuh. Cincin kemajuan
+/// dan getaran memberi tahu petugas bahwa penekanan benar-benar terbaca,
+/// sekaligus mencegah sinyal palsu dari sentuhan tak sengaja.
+class _TombolTahan extends StatefulWidget {
+  final bool aktif;
+  final VoidCallback onSelesai;
+  const _TombolTahan({required this.aktif, required this.onSelesai});
+
+  @override
+  State<_TombolTahan> createState() => _TombolTahanState();
+}
+
+class _TombolTahanState extends State<_TombolTahan> with SingleTickerProviderStateMixin {
+  static const _durasi = Duration(milliseconds: 2500);
+  late final AnimationController _c = AnimationController(vsync: this, duration: _durasi)
+    ..addListener(() => setState(() {}))
+    ..addStatusListener((s) {
+      if (s == AnimationStatus.completed) _kirim();
+    });
+
+  bool _terkirim = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _mulai() {
+    if (!widget.aktif || _terkirim) return;
+    HapticFeedback.selectionClick();
+    _c.forward(from: 0);
+  }
+
+  void _batal() {
+    if (_c.isAnimating) _c.reverse();
+  }
+
+  Future<void> _kirim() async {
+    if (_terkirim) return;
+    _terkirim = true;
+    HapticFeedback.heavyImpact();
+    widget.onSelesai();
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (mounted) {
+      _c.value = 0;
+      setState(() => _terkirim = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final v = _c.value;
+    final menahan = _c.isAnimating || v > 0;
+
+    return Column(
+      children: [
+        // Petunjuk ditaruh di atas tombol: sebagai baris terakhir halaman ia
+        // akan tertutup tombol pindai yang mengambang di tengah bilah bawah.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            widget.aktif
+                ? 'Lepas sebelum penuh untuk membatalkan.'
+                : 'Tersedia setelah Anda punya jadwal atau presensi masuk hari ini.',
+            style: const TextStyle(color: P.muted, fontSize: 10.5, height: 1.4),
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTapDown: (_) => _mulai(),
+          onTapUp: (_) => _batal(),
+          onTapCancel: _batal,
+          child: SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Lapis dasar tombol
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: widget.aktif ? P.danger.withOpacity(.22) : P.panel2,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: widget.aktif ? P.danger.withOpacity(.55) : P.line,
+                    ),
+                  ),
+                ),
+                // Isian yang tumbuh selama tombol ditahan
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: v.clamp(0.0, 1.0),
+                      child: const ColoredBox(color: P.danger),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        menahan ? Icons.campaign : Icons.campaign_outlined,
+                        size: 19,
+                        color: widget.aktif ? Colors.white : P.muted,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _terkirim
+                            ? 'SINYAL TERKIRIM'
+                            : menahan
+                                ? 'TAHAN TERUS… ${((1 - v) * 2.5).toStringAsFixed(1)} DETIK'
+                                : 'TEKAN & TAHAN 2,5 DETIK',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: .6,
+                          color: widget.aktif ? Colors.white : P.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

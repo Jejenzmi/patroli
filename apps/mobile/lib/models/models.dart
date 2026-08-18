@@ -133,6 +133,9 @@ class ScheduleModel {
   final PatrolRouteModel? route;
   final Map<String, dynamic>? attendance;
 
+  /// Instruksi khusus dari Danru untuk penugasan ini (FR-PAT-002).
+  final String? notes;
+
   ScheduleModel({
     required this.id,
     required this.date,
@@ -143,6 +146,7 @@ class ScheduleModel {
     required this.endTime,
     this.route,
     this.attendance,
+    this.notes,
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> j) => ScheduleModel(
@@ -155,6 +159,7 @@ class ScheduleModel {
         endTime: j['shift']?['endTime'] ?? '',
         route: j['route'] != null ? PatrolRouteModel.fromJson(j['route']) : null,
         attendance: j['attendance'],
+        notes: (j['notes'] as String?)?.trim().isEmpty ?? true ? null : j['notes'],
       );
 }
 

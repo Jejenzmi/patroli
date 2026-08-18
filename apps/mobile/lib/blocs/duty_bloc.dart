@@ -282,7 +282,11 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
     try {
       double? lat, lng;
       try {
-        final pos = await Geo.current(highAccuracy: false);
+        // Sinyal darurat tidak boleh menunggu GPS. Bila posisi belum terkunci
+        // dalam lima detik, sinyal tetap dikirim tanpa koordinat — pusat
+        // kendali masih tahu siapa yang meminta bantuan dan di site mana.
+        final pos = await Geo.current(highAccuracy: false)
+            .timeout(const Duration(seconds: 5));
         lat = pos.latitude;
         lng = pos.longitude;
       } catch (_) {}

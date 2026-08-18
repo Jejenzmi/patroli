@@ -178,6 +178,29 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(color: P.cyan, fontSize: 11)),
+                        // FR-PAT-002: instruksi khusus dari Danru untuk penugasan ini.
+                        if ((s['notes'] as String?)?.trim().isNotEmpty ?? false) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: P.amber.withOpacity(.08),
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(color: P.amber.withOpacity(.28)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.push_pin_outlined, size: 12, color: P.amber),
+                                const SizedBox(width: 7),
+                                Expanded(
+                                  child: Text(s['notes'],
+                                      style: const TextStyle(fontSize: 11, height: 1.45)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

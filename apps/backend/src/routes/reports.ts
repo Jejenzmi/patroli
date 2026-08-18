@@ -584,7 +584,100 @@ router.get('/map', async (req, res) => {
     req.user!.role === 'CLIENT'
       ? presenceSemua.filter((p) => p.siteId && idsSite.has(p.siteId))
       : presenceSemua;
-  res.json({ sites, presence, panics });
+
+  // FR-GPS-001: jejak pergerakan terakhir tiap anggota yang sedang bertugas.
+  const sejak = new Date(Date.now() - 90 * 60 * 1000);
+  const idsAnggota = presence.map((p) => p.guardId).filter(Boolean) as string[];
+  const pings = idsAnggota.length
+    ? await prisma.locationPing.findMany({
+        where: { guardId: { in: idsAnggota }, recordedAt: { gte: sejak } },
+        orderBy: { recordedAt: 'asc' },
+        select: { guardId: true, lat: true, lng: true, recordedAt: true },
+        take: 3000,
+      })
+    : [];
+  const perAnggota = new Map<string, [number, number][]>();
+  for (const p of pings) {
+    const arr = perAnggota.get(p.guardId) ?? [];
+    arr.push([p.lat, p.lng]);
+    perAnggota.set(p.guardId, arr);
+  }
+  const tracks = [...perAnggota.entries()]
+    .filter(([, titik]) => titik.length > 1)
+    .map(([guardId, titik]) => ({
+      guardId,
+      name: presence.find((p) => p.guardId === guardId)?.name ?? '',
+      // Cukup 40 titik terakhir; lebih dari itu hanya membebani peta.
+      points: titik.slice(-40),
+    }));
+
+  res.json({ sites, presence, panics, tracks });
+});
+
+/**
+ * Denah lantai beserta posisi anggota (FR-GPS-003).
+ *
+ * Posisi anggota di dalam gedung tidak dapat diandalkan dari GPS, sehingga
+ * yang dipakai adalah titik QR terakhir yang ia pindai — itulah keberadaan
+ * terakhir yang benar-benar terbukti.
+ */
+router.get('/floors', async (req, res) => {
+  const siteId = req.query.siteId ? String(req.query.siteId) : null;
+  const where: any = siteId ? { siteId } : {};
+  const boleh = await allowedSiteIds(req);
+  if (boleh !== null) where.siteId = siteId && boleh.includes(siteId) ? siteId : { in: boleh };
+
+  const floors = await prisma.floor.findMany({
+    where,
+    orderBy: [{ siteId: 'asc' }, { level: 'asc' }],
+    include: {
+      site: { select: { id: true, name: true } },
+      checkpoints: {
+        where: { isActive: true },
+        select: { id: true, name: true, code: true, planX: true, planY: true },
+      },
+    },
+  });
+
+  // Pemindaian terakhir tiap anggota dalam 12 jam terakhir.
+  const sejak = new Date(Date.now() - 12 * 3600 * 1000);
+  const scans = await prisma.patrolScan.findMany({
+    where: { scannedAt: { gte: sejak }, checkpoint: { floorId: { not: null } } },
+    orderBy: { scannedAt: 'desc' },
+    take: 800,
+    select: {
+      scannedAt: true,
+      condition: true,
+      checkpoint: { select: { id: true, name: true, floorId: true, planX: true, planY: true } },
+      session: { select: { guard: { select: { id: true, name: true, avatarUrl: true } } } },
+    },
+  });
+
+  const terakhir = new Map<string, any>();
+  for (const s of scans) {
+    const g = s.session?.guard;
+    if (!g || terakhir.has(g.id)) continue;
+    terakhir.set(g.id, {
+      guardId: g.id,
+      name: g.name,
+      avatarUrl: g.avatarUrl,
+      floorId: s.checkpoint.floorId,
+      checkpointId: s.checkpoint.id,
+      checkpointName: s.checkpoint.name,
+      planX: s.checkpoint.planX,
+      planY: s.checkpoint.planY,
+      condition: s.condition,
+      at: s.scannedAt,
+    });
+  }
+  const posisi = [...terakhir.values()];
+
+  res.json(
+    floors.map((f) => ({
+      ...f,
+      guards: posisi.filter((p) => p.floorId === f.id && p.planX != null && p.planY != null),
+    }))
+  );
 });
 
 export default router;

@@ -1,7 +1,7 @@
 name: patroli_mobile
 description: PATROLI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
