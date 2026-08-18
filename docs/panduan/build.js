@@ -594,6 +594,114 @@ part('Bagian A · Aplikasi Web', 'Verifikasi Wajah pada Presensi', () => {
   return s.join('\n');
 });
 
+part('Bagian A · Aplikasi Web', 'Darurat Berjenis, Divisi & Sirene', () => {
+  const s = [];
+  s.push(p('Menekan tombol darurat tidak lagi sekadar mengirim pesan “ada kejadian”. Petugas memilih <strong>jenis kejadiannya</strong>, dan sistem meneruskannya kepada divisi yang memang menanganinya sekaligus membunyikan sirene di lapangan.'));
+  s.push(sub('Siapa yang datang untuk kejadian apa'));
+  s.push(table(
+    ['Jenis kejadian', 'Diteruskan kepada (bawaan)'],
+    [
+      ['<span class="pill merah">Kebakaran</span>', 'Pemadam Kebakaran, K3, Komando Sekuriti'],
+      ['<span class="pill kuning">Kecelakaan kerja</span>', 'K3, Klinik, Komando Sekuriti'],
+      ['<span class="pill hijau">Gawat medis</span>', 'Klinik, K3'],
+      ['<span class="pill merah">Tindak kriminal</span>', 'Komando Sekuriti'],
+      ['<span class="pill ungu">Bencana alam</span>', 'Tim Tanggap Bencana, K3, Komando Sekuriti'],
+      ['<span class="pill biru">Bantuan umum</span>', 'Komando Sekuriti'],
+    ]
+  ));
+  s.push(p('Selain divisi, pusat komando dan akun klien pemilik site selalu menerima pemberitahuan yang sama pada saat yang sama.'));
+  s.push(sub('Menyiapkan divisi penanggap'));
+  s.push(steps([
+    'Buka <strong>Darurat &amp; Sirene</strong> pada kelompok Konfigurasi.',
+    'Pada tab <strong>Divisi Penanggap</strong>, tekan <strong>Divisi Baru</strong>.',
+    'Isi kode dan nama divisi, misalnya <code>DAMKAR</code> — Pemadam Kebakaran.',
+    'Isi nomor telepon yang dihubungi bila divisi itu belum punya akun di sistem.',
+    'Centang anggota berakun yang menerima pemberitahuan divisi tersebut.',
+    'Kosongkan cakupan site bila divisi berlaku untuk seluruh lokasi.',
+    'Simpan lalu setujui konfirmasi.',
+  ]));
+  s.push(img('web-sirene-divisi', 'Daftar divisi penanggap beserta jenis kejadian yang ditanganinya.'));
+  s.push(sub('Mengatur perutean'));
+  s.push(p('Tab <strong>Perutean Darurat</strong> memperlihatkan enam kotak, satu untuk tiap jenis kejadian, berisi divisi yang akan dihubungi.'));
+  s.push(steps([
+    'Tekan <strong>Perutean Baru</strong>.',
+    'Pilih jenis kejadian dan divisi penanggapnya.',
+    'Bila aturan hanya berlaku untuk satu site, pilih site tersebut.',
+    'Simpan lalu setujui konfirmasi.',
+  ]));
+  s.push(img('web-sirene-perutean', 'Perutean per jenis kejadian; satu jenis boleh mengarah ke beberapa divisi.'));
+  s.push(note('Keterangan', 'Aturan yang diberi site menimpa aturan umum. Site yang memiliki klinik sendiri karena itu tidak lagi memanggil klinik pusat untuk kejadian medis.'));
+  s.push(sub('Sirene di tiang'));
+  s.push(p('Sirene didaftarkan sebagai perangkat jaringan. Papan relai yang lazim dipakai di lapangan — Shelly, Tasmota, atau papan berbasis ESP32 — cukup dipanggil lewat alamat HTTP-nya.'));
+  s.push(steps([
+    'Buka tab <strong>Sirene Tiang</strong> lalu tekan <strong>Sirene Baru</strong>.',
+    'Pilih site. Isi lantai hanya bila sirene itu memang melayani satu lantai; kosongkan untuk sirene luar ruang yang selalu ikut berbunyi.',
+    'Isi kode, nama, dan letak fisiknya.',
+    'Pilih antarmuka: <strong>HTTP GET</strong> untuk Shelly dan Tasmota, <strong>HTTP JSON</strong> untuk papan yang menerima JSON.',
+    'Isi alamat menyalakan dan mematikan, misalnya <code>http://192.168.1.50/relay/0?turn=on</code>.',
+    'Tentukan lama bunyi. Isi 0 bila sirene harus berbunyi sampai dimatikan.',
+    'Simpan, lalu tekan <strong>Bunyikan</strong> untuk menguji.',
+  ]));
+  s.push(img('web-sirene-sirene', 'Daftar sirene beserta keadaan terakhir dan tombol uji bunyi.'));
+  s.push(warn('Sebelum menguji', 'Tombol <strong>Bunyikan</strong> benar-benar membunyikan sirene di lapangan. Beri tahu petugas jaga lebih dulu agar tidak dikira keadaan darurat sungguhan.'));
+  s.push(sub('Yang terjadi saat tombol darurat ditekan'));
+  s.push(steps([
+    'Pemberitahuan terkirim serentak ke pusat komando, akun klien, dan seluruh divisi penanggap jenis kejadian itu.',
+    'Sirene di site berbunyi. Bila lantai kejadian diketahui, sirene lantai tersebut ikut dibunyikan bersama sirene luar ruang.',
+    'Kejadian muncul di halaman <strong>Sinyal Darurat</strong> lengkap dengan jenis, lantai, dan riwayat perintah sirene.',
+    'Menutup kejadian ikut mematikan sirene — sirene yang dibiarkan berbunyi justru menumpulkan kewaspadaan.',
+  ]));
+  s.push(note('Keterangan', 'Setiap perintah ke sirene disimpan, termasuk yang gagal. Bila sebuah perangkat tidak menjawab, catatannya tetap ada sebagai bukti bahwa sistem sudah berusaha membunyikannya.'));
+  return s.join('\n');
+});
+
+part('Bagian A · Aplikasi Web', 'Integritas Data & Perangkat', () => {
+  const s = [];
+  s.push(p('Bukti kehadiran hanya bernilai bila tidak dapat dibuat-buat. Halaman <strong>Integritas &amp; Perangkat</strong> memperlihatkan setiap upaya memalsukan lokasi atau memakai akun orang lain — semuanya sudah ditolak sistem, tetapi tetap tersimpan.'));
+  s.push(img('web-integritas', 'Percobaan pelanggaran beserta pelaku, koordinat, dan perangkatnya.'));
+  s.push(sub('Apa saja yang ditolak sistem'));
+  s.push(table(
+    ['Jenis', 'Cara sistem mengetahuinya'],
+    [
+      ['<span class="pill merah">Lokasi palsu</span>', 'Android menandai koordinat yang berasal dari aplikasi pengubah lokasi (fake GPS); aplikasi meneruskan tanda itu.'],
+      ['<span class="pill kuning">Perpindahan mustahil</span>', 'Dihitung di server dari jarak dan selang waktu antar-catatan. Di atas 130 km/jam ditolak.'],
+      ['<span class="pill ungu">Emulator</span>', 'Aplikasi dijalankan di komputer, bukan ponsel sungguhan.'],
+      ['<span class="pill biru">Perangkat tidak terdaftar</span>', 'Akun dipakai masuk dari ponsel selain yang terikat padanya.'],
+    ]
+  ));
+  s.push(warn('Mengapa ada dua cara', 'Penandaan dari aplikasi bergantung pada kejujuran aplikasi itu sendiri, dan aplikasi dapat diubah orang. Karena itu perhitungan kewajaran perpindahan dilakukan di server: cara ini tetap bekerja walaupun aplikasi di ponsel sudah dimodifikasi agar tidak melaporkan apa pun.'));
+  s.push(sub('Membaca catatan pelanggaran'));
+  s.push(p('Tiap baris memuat waktu, pelaku, jenis pelanggaran, tindakan yang sedang dicoba, koordinat yang dilaporkan, dan penanda perangkatnya. Empat kartu di atas tabel merangkum jumlah pelanggaran 30 hari terakhir.'));
+  s.push(steps([
+    'Gunakan kotak pilihan di kanan atas untuk menyaring satu jenis pelanggaran.',
+    'Perhatikan pelaku yang berulang kali muncul — sekali mungkin kekeliruan pengaturan ponsel, berkali-kali adalah pola.',
+    'Cocokkan waktunya dengan jadwal jaga yang bersangkutan sebelum mengambil tindakan kepegawaian.',
+  ]));
+  s.push(note('Keterangan', 'Percobaan presensi yang ditolak karena lokasi palsu juga muncul pada tab <strong>Percobaan Ditolak</strong> di halaman Presensi, lengkap dengan fotonya.'));
+  s.push(sub('Satu akun, satu ponsel'));
+  s.push(p('Akun anggota terikat pada ponsel yang dipakainya saat masuk pertama kali. Masuk dari ponsel lain ditolak — sehingga akun tidak dapat dipinjamkan kepada rekan.'));
+  s.push(table(
+    ['Keadaan', 'Yang terjadi'],
+    [
+      ['Masuk pertama kali', 'Akun terikat pada ponsel tersebut secara otomatis.'],
+      ['Aplikasi dipasang ulang di ponsel yang sama', 'Diterima. Sistem mengenali ciri perangkatnya dan memperbarui sendiri penandanya.'],
+      ['Masuk dari ponsel lain', 'Ditolak, dan percobaannya dicatat sebagai pelanggaran.'],
+      ['Anggota berganti ponsel', 'Administrator melepaskan ikatannya; masuk berikutnya mengikat ponsel baru.'],
+      ['Ponsel hilang', 'Administrator memblokir perangkat itu, lalu melepaskan ikatannya.'],
+    ]
+  ));
+  s.push(steps([
+    'Buka tab <strong>Perangkat Terikat</strong>.',
+    'Cari nama anggota yang bersangkutan.',
+    'Tekan ikon <strong>rantai putus</strong> untuk melepaskan ikatan, atau ikon <strong>larangan</strong> untuk memblokir perangkatnya.',
+    'Setujui konfirmasi. Tindakan ini tercatat pada Jejak Audit.',
+  ]));
+  s.push(img('web-integritas-perangkat', 'Daftar ponsel yang terikat pada tiap akun beserta versi aplikasinya.'));
+  s.push(tip('Kiat', 'Lepaskan ikatan hanya bila anggota memang berganti ponsel. Melepaskannya karena diminta lewat telepon, tanpa memastikan, sama saja membuka pintu yang baru saja dikunci.'));
+  s.push(note('Keterangan', 'Portal web sengaja tidak diikat pada perangkat, karena pengawas dan administrator memang bekerja berpindah komputer.'));
+  return s.join('\n');
+});
+
 part('Bagian A · Aplikasi Web', 'Pengumuman, Laporan, dan Jejak Audit', () => {
   const s = [];
   s.push(sub('Pengumuman'));
@@ -687,7 +795,8 @@ part('Bagian B · Aplikasi Lapangan', 'Beranda', () => {
       ['Kisi pintasan', 'Dua belas layanan: Buku Tamu, Kendaraan, Serah Terima, Jadwal Saya, Lapor Insiden, Pengumuman, Riwayat Patroli, Tugas Saya, Instruksi, Nilai Kinerja, Cuti &amp; Lembur, dan Semua Layanan.'],
       ['Jadwal jaga', 'Shift Anda hari ini beserta rutenya.'],
       ['Pengumuman', 'Geser ke samping untuk membaca pengumuman terbaru.'],
-      ['Tombol darurat', 'Kartu merah di bagian bawah.'],
+      ['Tombol darurat', 'Kartu merah di bagian bawah, berisi enam jenis kejadian.'],
+      ['Bilah keadaan jaringan', 'Muncul di paling atas hanya bila sinyal hilang atau ada catatan yang belum terkirim.'],
     ]
   ));
   s.push(sub('Bilah bawah'));
@@ -731,6 +840,7 @@ part('Bagian B · Aplikasi Lapangan', 'Menjalankan Patroli', () => {
   ]));
   s.push(hp('hp-patroli', 'Tab Patroli sebelum putaran dimulai.'));
   s.push(hp('hp-patroli-aktif', 'Putaran berjalan: peta titik, kemajuan, dan tombol AKHIRI di kanan atas.'));
+  s.push(note('Penanda lantai', 'Titik yang berada di dalam gedung menampilkan lencana ungu <strong>Lt. 2</strong> dan seterusnya. Lencana itu pula yang dipakai pusat komando untuk mengetahui lantai keberadaan Anda, karena GPS tidak dapat membedakan lantai.'));
   s.push(sub('Memindai titik'));
   s.push(steps([
     'Datangi titik sesuai urutan pada daftar.',
@@ -781,12 +891,16 @@ part('Bagian B · Aplikasi Lapangan', 'Insiden, Darurat, dan Pos Jaga', () => {
   s.push(sub('Tombol darurat'));
   s.push(steps([
     'Buka beranda, gulir ke kartu merah <strong>Tombol Darurat</strong>.',
-    'Tekan tombolnya dan <strong>tahan selama 2,5 detik</strong>. Bilah merah akan terisi dan ponsel bergetar sebagai tanda penekanan terbaca.',
+    'Pilih <strong>jenis kejadian</strong> lebih dulu: Kebakaran, Kecelakaan, Gawat Medis, Kriminal, Bencana, atau Bantuan Umum. Keterangan di bawah pilihan menyebutkan divisi yang akan dihubungi.',
+    'Tekan tombolnya dan <strong>tahan selama 2,5 detik</strong>. Bilah akan terisi dan ponsel bergetar sebagai tanda penekanan terbaca.',
     'Begitu bilah penuh, sinyal terkirim seketika beserta posisi Anda — tidak ada dialog yang perlu ditekan lagi.',
     'Tetap di tempat aman sampai menerima pemberitahuan bahwa bantuan sedang menuju lokasi.',
   ]));
   s.push(note('Mengapa harus ditahan', 'Sinyal darurat tidak dikirim oleh satu sentuhan agar tidak terpicu tanpa sengaja saat ponsel berada di dalam saku. Bila Anda melepas tombol sebelum bilahnya penuh, tidak ada yang terkirim.'));
-  s.push(warn('Perhatian', 'Gunakan hanya untuk keadaan darurat sungguhan. Setiap penekanan tercatat beserta nama dan koordinat Anda.'));
+  s.push(hp('hp-darurat', 'Enam jenis kejadian; tombol tahan mengikuti warna jenis yang dipilih.'));
+  s.push(p('Memilih jenis yang tepat bukan sekadar melengkapi laporan: jenis itulah yang menentukan siapa yang datang. Kejadian kebakaran memanggil pemadam, kecelakaan kerja memanggil K3 dan klinik. Salah memilih berarti yang datang bukan yang Anda butuhkan.'));
+  s.push(p('Bersamaan dengan pemberitahuan, <strong>sirene di tiang ikut berbunyi</strong> — di lantai tempat Anda terakhir memindai titik, dan di area luar site.'));
+  s.push(warn('Perhatian', 'Gunakan hanya untuk keadaan darurat sungguhan. Setiap penekanan tercatat beserta nama, jenis kejadian, lantai, dan koordinat Anda.'));
   s.push(sub('Buku tamu dan kendaraan'));
   s.push(steps([
     'Ketuk pintasan <strong>Buku Tamu</strong> atau <strong>Kendaraan</strong> di beranda.',
@@ -848,6 +962,58 @@ part('Bagian B · Aplikasi Lapangan', 'Tugas, Instruksi, Nilai, dan Pengajuan', 
   s.push(hp('hp-cuti', 'Riwayat pengajuan beserta statusnya.'));
   s.push(p('Status pengajuan berubah dari <strong>Menunggu</strong> menjadi <strong>Disetujui</strong> atau <strong>Ditolak</strong>, disertai catatan dari pengawas. Anda menerima notifikasi begitu keputusan dibuat.'));
   s.push(note('Keterangan', 'Pengajuan tidak dapat diubah setelah terkirim. Bila keliru, ajukan ulang dan sampaikan kepada pengawas agar pengajuan yang salah ditolak.'));
+  return s.join('\n');
+});
+
+part('Bagian B · Aplikasi Lapangan', 'Bekerja di Area Tanpa Sinyal', () => {
+  const s = [];
+  s.push(p('Basement, gudang berdinding logam, perkebunan, lantai dalam gedung — sinyal seluler kerap hilang justru di tempat yang harus diperiksa. Aplikasi tidak berhenti bekerja di sana.'));
+  s.push(sub('Yang perlu Anda ketahui'));
+  s.push(ul([
+    '<strong>Tetap kerjakan seperti biasa.</strong> Pindai titik, catat presensi, kirim laporan — semuanya diterima aplikasi walau tanpa sinyal.',
+    '<strong>Tidak ada yang hilang.</strong> Catatan disimpan di ponsel Anda, berurutan sesuai waktu pengerjaannya.',
+    '<strong>Terkirim sendiri.</strong> Begitu sinyal kembali, semuanya dikirim tanpa Anda perlu menekan apa pun.',
+    '<strong>Jangan mengulang.</strong> Titik yang sudah dipindai tetap tercatat hijau meski catatannya belum terkirim.',
+  ]));
+  s.push(hp('hp-luring', 'Bilah kuning di atas layar menerangkan keadaan jaringan dan jumlah catatan yang menunggu.'));
+  s.push(sub('Membaca bilah keadaan'));
+  s.push(table(
+    ['Yang tertulis', 'Artinya'],
+    [
+      ['Tidak ada bilah sama sekali', 'Semuanya normal; tidak ada yang tertunda.'],
+      ['<strong>Tanpa jaringan · pekerjaan tetap tercatat di perangkat</strong>', 'Sinyal hilang, tetapi belum ada catatan yang mengantre.'],
+      ['<strong>Tanpa jaringan · 3 catatan menunggu terkirim</strong>', 'Sinyal hilang dan ada tiga catatan yang menunggu giliran.'],
+      ['<strong>Mengirim 3 catatan yang tertunda…</strong>', 'Sinyal sudah kembali dan pengiriman sedang berjalan.'],
+    ]
+  ));
+  s.push(steps([
+    'Ketuk bilah tersebut untuk melihat daftar catatan yang menunggu beserta waktunya.',
+    'Bila Anda yakin sinyal sudah baik namun daftarnya belum berkurang, tekan <strong>COBA KIRIM SEKARANG</strong>.',
+    'Titik yang bertanda <em>Menunggu kirim</em> pada daftar patroli berarti sudah Anda pindai — tidak perlu dipindai ulang.',
+  ]));
+  s.push(hp('hp-luring-antrean', 'Daftar catatan yang menunggu terkirim beserta tombol kirim ulang.'));
+  s.push(warn('Sebelum mengakhiri patroli', 'Usahakan berada di tempat bersinyal ketika menekan AKHIRI, agar seluruh pemindaian sempat terkirim lebih dulu dan angka kepatuhan Anda terhitung utuh. Bila terpaksa, aplikasi tetap mengirimkannya kemudian.'));
+  s.push(note('Waktu kejadian', 'Waktu yang tercatat resmi adalah waktu server saat catatan diterima, sedangkan waktu Anda mengerjakannya di lapangan ikut disimpan sebagai keterangan. Karena itu bekerja tanpa sinyal tidak merugikan Anda, dan juga tidak dapat dipakai memundurkan jam presensi.'));
+  s.push(tip('Kiat', 'Jangan menghapus data aplikasi atau mencopotnya selagi masih ada catatan yang menunggu — catatan itu tersimpan di dalam aplikasi.'));
+  return s.join('\n');
+});
+
+part('Bagian B · Aplikasi Lapangan', 'Aturan Keaslian Data', () => {
+  const s = [];
+  s.push(p('Nilai seluruh catatan lapangan bertumpu pada satu hal: bahwa catatan itu benar. Aplikasi karena itu menolak beberapa hal, dan setiap penolakan dilaporkan ke pengawas.'));
+  s.push(sub('Aplikasi pengubah lokasi'));
+  s.push(warn('Jangan dipasang', 'Presensi dan pemindaian titik akan <strong>ditolak</strong> bila ponsel menjalankan aplikasi pengubah lokasi (fake GPS). Penolakannya tidak berhenti di layar Anda: percobaan itu tercatat lengkap dengan koordinat, waktu, dan nama Anda, lalu dikirim ke pengawas saat itu juga.'));
+  s.push(p('Bila Anda pernah memasang aplikasi semacam itu untuk keperluan lain, cabut izin “lokasi tiruan” pada Opsi Pengembang atau hapus aplikasinya sebelum bertugas.'));
+  s.push(sub('Perpindahan yang tidak wajar'));
+  s.push(p('Sistem juga menghitung kewajaran perpindahan Anda. Bila jarak antara dua catatan hanya mungkin ditempuh dengan kecepatan di atas 130 km/jam, tindakan itu ditolak. Bila Anda memang baru saja berpindah lokasi jauh, tunggu beberapa saat lalu ulangi.'));
+  s.push(sub('Satu akun, satu ponsel'));
+  s.push(steps([
+    'Akun Anda terikat pada ponsel yang dipakai saat masuk pertama kali.',
+    'Memasang ulang aplikasi di ponsel yang sama tidak bermasalah — Anda tidak perlu melapor.',
+    'Bila Anda berganti ponsel atau ponsel Anda hilang, laporkan kepada administrator agar ikatannya dilepaskan.',
+    'Meminjamkan akun kepada rekan tidak akan berhasil, dan percobaannya tercatat.',
+  ]));
+  s.push(note('Keterangan', 'Sinyal darurat dikecualikan dari seluruh aturan di atas. Dalam keadaan genting, sinyal tetap dikirim walau koordinatnya diragukan — keselamatan didahulukan, dan penyimpangan datanya ditinjau kemudian.'));
   return s.join('\n');
 });
 

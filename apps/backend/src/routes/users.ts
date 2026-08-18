@@ -219,7 +219,7 @@ router.get('/devices/list', allow(...COMMAND), async (req, res) => {
     take: 300,
     include: {
       user: {
-        select: { id: true, name: true, employeeId: true, role: true, avatarUrl: true,
+        select: { id: true, name: true, username: true, employeeId: true, role: true, avatarUrl: true,
                   homeSite: { select: { id: true, name: true } } },
       },
     },

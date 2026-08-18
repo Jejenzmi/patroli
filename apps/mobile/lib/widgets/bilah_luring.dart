@@ -46,18 +46,33 @@ class _BilahLuringState extends State<BilahLuring> {
             ? 'Mengirim $menunggu catatan yang tertunda…'
             : '$menunggu catatan menunggu terkirim';
 
-    return Material(
-      color: P.voidBg,
-      child: Column(
-        children: [
-          _bilah(context, luring, menunggu, warna, pesan),
-          // Isi aplikasi turun sedikit; padding atasnya dilepas agar tidak
-          // ada ruang kosong ganda di bawah bilah.
-          Expanded(child: MediaQuery.removePadding(context: context, removeTop: true, child: widget.child)),
-        ],
-      ),
+    // Bilah ditumpuk di atas isi aplikasi, bukan menyusutkannya lewat Column.
+    // Menaruh Navigator di dalam Column membuatnya kehilangan batas ukuran yang
+    // diharapkan dan layar berikutnya gagal tergambar. Sebagai gantinya, isi
+    // tetap seukuran penuh dan hanya diberi tahu bahwa tepi atasnya bertambah.
+    final mq = MediaQuery.of(context);
+    final tinggiBilah = mq.padding.top + _tinggiIsiBilah;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: MediaQuery(
+            data: mq.copyWith(padding: mq.padding.copyWith(top: tinggiBilah)),
+            child: widget.child,
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _bilah(context, luring, menunggu, warna, pesan),
+        ),
+      ],
     );
   }
+
+  /// Tinggi isi bilah di luar area aman bilah status.
+  static const double _tinggiIsiBilah = 30;
 
   Widget _bilah(BuildContext context, bool luring, int menunggu, Color warna, String pesan) {
     return Material(

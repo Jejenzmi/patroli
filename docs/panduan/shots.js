@@ -70,6 +70,34 @@ async function tokenOf(username, password) {
   await ambil('/jejak-audit', 'audit');
   await ambil('/profil', 'profil');
 
+  // Darurat & Sirene: tiga tab
+  for (const [nama, teksTab] of [['divisi', null], ['perutean', 'Perutean'], ['sirene', 'Sirene Tiang']]) {
+    await web.goto(`${WEB}/sirene`, { waitUntil: 'networkidle2' });
+    await sleep(2600);
+    if (teksTab) {
+      await web.evaluate((x) => {
+        [...document.querySelectorAll('button')].find((b) => b.innerText.includes(x))?.click();
+      }, teksTab);
+      await sleep(1600);
+    }
+    await web.screenshot({ path: `${OUT}/web-sirene-${nama}.png` });
+    console.log(`  · web-sirene-${nama}`);
+  }
+
+  // Integritas & Perangkat: dua tab
+  for (const [nama, teksTab] of [['integritas', null], ['integritas-perangkat', 'Perangkat Terikat']]) {
+    await web.goto(`${WEB}/integritas`, { waitUntil: 'networkidle2' });
+    await sleep(2600);
+    if (teksTab) {
+      await web.evaluate((x) => {
+        [...document.querySelectorAll('button')].find((b) => b.innerText.includes(x))?.click();
+      }, teksTab);
+      await sleep(1600);
+    }
+    await web.screenshot({ path: `${OUT}/web-${nama}.png` });
+    console.log(`  · web-${nama}`);
+  }
+
   // Denah lantai pada Peta Situasi
   await web.goto(`${WEB}/peta`, { waitUntil: 'networkidle2' });
   await sleep(3600);
@@ -165,6 +193,26 @@ async function tokenOf(username, password) {
   await web.close();
 
   /* ─────────── Layar aplikasi lapangan ─────────── */
+
+  // Akun peragaan dipakai dari peramban yang selalu baru, sehingga penanda
+  // perangkatnya berbeda setiap kali. Ikatan sebelumnya dilepaskan lebih dulu
+  // agar aturan 'satu akun satu ponsel' tidak menahan pengambilan gambar.
+  try {
+    const daftar = await (await fetch(`${WEB}/api/users/devices/list`, {
+      headers: { Authorization: `Bearer ${admin}` },
+    })).json();
+    for (const d of daftar) {
+      if (d.user?.username === 'guard1' || d.user?.employeeId === 'SEC-001') {
+        await fetch(`${WEB}/api/users/devices/${d.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${admin}` },
+        });
+      }
+    }
+  } catch (e) {
+    console.log('  ! gagal melepaskan ikatan perangkat:', e.message);
+  }
+
   const hp = await browser.newPage();
   await hp.setViewport({ width: 412, height: 892, deviceScaleFactor: 2, isMobile: true });
 
@@ -281,6 +329,36 @@ async function tokenOf(username, password) {
     }
     await kembali();
   }
+
+  // Mode tanpa sinyal: bilah keadaan dan daftar antrean.
+  // Jaringan diputus sungguhan lewat CDP, lalu satu layar yang memanggil
+  // server dibuka agar aplikasi menyadarinya.
+  const cdp = await hp.target().createCDPSession();
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0,
+  });
+  await keBeranda();
+  await gulir(700);
+  // Membuka satu layar yang memanggil server agar aplikasi menyadari
+  // jaringannya mati. Dicoba dua pintasan supaya tidak bergantung pada
+  // posisi gulir yang persis.
+  if ((await ketuk('Instruksi', 6000)) || (await ketuk('Kendaraan', 6000))) {
+    await hp.mouse.click(40, 62);
+    await sleep(2500);
+  }
+  await keBeranda();
+  await potret('luring');
+  // Membuka rincian antrean lewat bilah di paling atas layar.
+  await hp.mouse.click(206, 30);
+  await sleep(1800);
+  await potret('luring-antrean');
+  await hp.keyboard.press('Escape');
+  await sleep(1200);
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1,
+  });
+  await sleep(4000);
 
   // Kartu tombol darurat tekan-tahan
   await keBeranda();

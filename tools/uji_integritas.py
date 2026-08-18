@@ -36,10 +36,11 @@ def masuk(u, p, platform="mobile", device=None):
 adm_s, adm_r = masuk("admin", "admin123", "web")
 adm = adm_r["token"]
 
-# Bersihkan ikatan perangkat akun uji lebih dulu.
+# Bersihkan seluruh ikatan perangkat akun uji lebih dulu. Penandanya tidak
+# selalu berawalan 'uji-' — sesi pemotretan panduan meninggalkan penanda acak.
 s, daftar = call("GET", "/users/devices/list", adm)
 for d in (daftar if isinstance(daftar, list) else []):
-    if d["user"]["employeeId"] and d["deviceId"].startswith("uji-ponsel"):
+    if d.get("user", {}).get("username") == "guard1":
         call("DELETE", f"/users/devices/{d['id']}", adm)
 
 print("── Pengikatan perangkat ──")
