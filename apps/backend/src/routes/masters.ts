@@ -344,6 +344,126 @@ router.delete('/shifts/:id', allow(...COMMAND), async (req, res) => {
   res.json({ message: 'Shift dihapus' });
 });
 
+/* ─────────────────────────── LANTAI & DENAH ─────────────────────────── */
+
+router.get('/floors', async (req, res) => {
+  let where: any = {};
+  if (req.query.siteId) where.siteId = String(req.query.siteId);
+  where = await withSiteScope(req, where);
+  const rows = await prisma.floor.findMany({
+    where,
+    orderBy: [{ siteId: 'asc' }, { level: 'asc' }],
+    include: {
+      site: { select: { id: true, name: true } },
+      checkpoints: {
+        select: { id: true, name: true, code: true, planX: true, planY: true, isActive: true },
+      },
+    },
+  });
+  res.json(rows);
+});
+
+const floorSchema = z.object({
+  siteId: z.string(),
+  name: z.string().min(1),
+  level: z.number().int().optional(),
+  planUrl: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+router.post('/floors', allow(...COMMAND), async (req, res) => {
+  const p = floorSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Data lantai tidak lengkap' });
+  const f = await prisma.floor.create({ data: p.data as any });
+  await audit(req.user!.sub, 'CREATE', 'Floor', f.id, p.data, req.ip);
+  res.status(201).json(f);
+});
+
+router.put('/floors/:id', allow(...COMMAND), async (req, res) => {
+  const p = floorSchema.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Data tidak valid' });
+  const f = await prisma.floor.update({ where: { id: req.params.id }, data: p.data as any });
+  res.json(f);
+});
+
+router.delete('/floors/:id', allow(...COMMAND), async (req, res) => {
+  await prisma.floor.delete({ where: { id: req.params.id } });
+  res.json({ message: 'Lantai dihapus' });
+});
+
+/** Menempatkan titik patroli pada denah lantai (FR-MST-003). */
+router.put('/floors/:id/place', allow(...COMMAND), async (req, res) => {
+  const schema = z.object({
+    checkpointId: z.string(),
+    planX: z.number().min(0).max(100),
+    planY: z.number().min(0).max(100),
+  });
+  const p = schema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Posisi harus dalam persen 0–100' });
+  const cp = await prisma.checkpoint.update({
+    where: { id: p.data.checkpointId },
+    data: { floorId: req.params.id, planX: p.data.planX, planY: p.data.planY },
+  });
+  res.json(cp);
+});
+
+/* ─────────────────────────── REGU ─────────────────────────── */
+
+router.get('/teams', async (req, res) => {
+  let where: any = {};
+  if (req.query.siteId) where.siteId = String(req.query.siteId);
+  where = await withSiteScope(req, where);
+  const rows = await prisma.team.findMany({
+    where,
+    orderBy: { name: 'asc' },
+    include: {
+      site: { select: { id: true, name: true } },
+      members: { select: { id: true, name: true, employeeId: true, avatarUrl: true, role: true } },
+    },
+  });
+  res.json(rows);
+});
+
+const teamSchema = z.object({
+  siteId: z.string(),
+  code: z.string().min(2),
+  name: z.string().min(2),
+  leaderId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  memberIds: z.array(z.string()).optional(),
+});
+
+router.post('/teams', allow(...COMMAND), async (req, res) => {
+  const p = teamSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Data regu tidak lengkap', issues: p.error.issues });
+  const { memberIds = [], ...data } = p.data;
+  const t = await prisma.team.create({ data: data as any });
+  if (memberIds.length)
+    await prisma.user.updateMany({ where: { id: { in: memberIds } }, data: { teamId: t.id } });
+  await audit(req.user!.sub, 'CREATE', 'Team', t.id, data, req.ip);
+  res.status(201).json(t);
+});
+
+router.put('/teams/:id', allow(...COMMAND), async (req, res) => {
+  const p = teamSchema.partial().safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Data tidak valid' });
+  const { memberIds, ...data } = p.data;
+  const t = await prisma.team.update({ where: { id: req.params.id }, data: data as any });
+  if (memberIds) {
+    // Anggota yang tidak lagi terdaftar dilepas dari regu ini.
+    await prisma.user.updateMany({ where: { teamId: t.id }, data: { teamId: null } });
+    if (memberIds.length)
+      await prisma.user.updateMany({ where: { id: { in: memberIds } }, data: { teamId: t.id } });
+  }
+  res.json(t);
+});
+
+router.delete('/teams/:id', allow(...COMMAND), async (req, res) => {
+  await prisma.user.updateMany({ where: { teamId: req.params.id }, data: { teamId: null } });
+  await prisma.team.delete({ where: { id: req.params.id } });
+  res.json({ message: 'Regu dihapus' });
+});
+
 /* ─────────────────────────── INVENTARIS ─────────────────────────── */
 
 router.get('/equipment', async (req, res) => {

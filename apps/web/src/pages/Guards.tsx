@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Pencil, UserMinus } from 'lucide-react';
+import { Users, Plus, Pencil, UserMinus, ScanFace } from 'lucide-react';
 import { api, qs } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Table, Chip, Avatar, Loading, Empty, Modal, Field, Select, SearchBox, Confirm } from '../components/ui';
@@ -20,6 +20,9 @@ export default function Guards() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ role: 'GUARD' });
   const [del, setDel] = useState<string | null>(null);
+  const [daftarWajah, setDaftarWajah] = useState<any>(null);
+  const [fotoWajah, setFotoWajah] = useState<string | null>(null);
+  const [prosesWajah, setProsesWajah] = useState(false);
 
   const sites = useQuery({ queryKey: ['sites'], queryFn: () => api.get('/master/sites') });
   const clients = useQuery({ queryKey: ['clients'], queryFn: () => api.get('/master/clients') });
@@ -40,6 +43,35 @@ export default function Guards() {
       qc.invalidateQueries({ queryKey: ['users'] });
     } catch (e: any) {
       toast.err('Gagal menyimpan', e.message);
+    }
+  };
+
+  const unggahWajah = async (file: File) => {
+    setProsesWajah(true);
+    try {
+      const { url } = await api.upload(file, 'wajah');
+      setFotoWajah(url);
+    } catch (e: any) {
+      toast.err('Gagal mengunggah foto', e.message);
+    } finally {
+      setProsesWajah(false);
+    }
+  };
+
+  const simpanWajah = async () => {
+    if (!fotoWajah) return toast.err('Unggah foto wajah lebih dulu');
+    if (!(await ask.save(`data wajah ${daftarWajah.name}`, 'Foto ini menjadi acuan verifikasi setiap kali yang bersangkutan melakukan presensi.'))) return;
+    setProsesWajah(true);
+    try {
+      await api.post(`/users/${daftarWajah.id}/face`, { photoUrl: fotoWajah });
+      toast.ok('Wajah terdaftar', 'Presensi kini diverifikasi dengan pencocokan wajah');
+      setDaftarWajah(null);
+      setFotoWajah(null);
+      qc.invalidateQueries({ queryKey: ['users'] });
+    } catch (e: any) {
+      toast.err('Gagal mendaftarkan wajah', e.message);
+    } finally {
+      setProsesWajah(false);
     }
   };
 
@@ -71,7 +103,7 @@ export default function Guards() {
         ) : !rows.length ? (
           <Empty text="Tidak ada personel yang cocok" />
         ) : (
-          <Table head={['Personel', 'Peran', 'Penempatan', 'Kontak', 'Bergabung', 'Status', '']}>
+          <Table head={['Personel', 'Peran', 'Penempatan', 'Kontak', 'Wajah', 'Status', '']}>
             {rows.map((u: any) => (
               <tr key={u.id} className="transition hover:bg-white/[.025]">
                 <td>
@@ -89,11 +121,26 @@ export default function Guards() {
                 </td>
                 <td className="text-[12.5px]">{u.homeSite?.name || u.client?.name || '—'}</td>
                 <td className="num text-[12px] text-muted">{u.phone || u.email || '—'}</td>
-                <td className="text-[12px]">{d(u.joinedAt)}</td>
+                <td>
+                  {u.faceEnrolledAt ? (
+                    <span className="chip border-emerald/40 bg-emerald/10 text-emerald">
+                      <ScanFace size={11} /> Terdaftar
+                    </span>
+                  ) : (
+                    <span className="chip border-line text-muted">Belum</span>
+                  )}
+                </td>
                 <td><Chip value={u.status === 'ACTIVE' ? 'DONE' : 'ABSENT'}>{u.status === 'ACTIVE' ? 'Aktif' : u.status === 'SUSPENDED' ? 'Ditangguhkan' : 'Berhenti'}</Chip></td>
                 <td className="text-right">
                   {canEdit && (
                     <div className="flex justify-end gap-1.5">
+                      <button
+                        className="btn-ghost btn-sm"
+                        title="Daftarkan wajah"
+                        onClick={() => { setDaftarWajah(u); setFotoWajah(null); }}
+                      >
+                        <ScanFace size={12} />
+                      </button>
                       <button className="btn-ghost btn-sm" onClick={() => { setForm({ ...u, homeSiteId: u.homeSite?.id, clientId: u.client?.id, password: '' }); setOpen(true); }}>
                         <Pencil size={12} />
                       </button>
@@ -177,6 +224,52 @@ export default function Guards() {
                 <option value="RESIGNED">Berhenti</option>
               </Select>
             </Field>
+          )}
+        </div>
+      </Modal>
+
+      {/* Pendaftaran wajah untuk verifikasi presensi */}
+      <Modal
+        open={!!daftarWajah}
+        onClose={() => { setDaftarWajah(null); setFotoWajah(null); }}
+        title={`Pendaftaran Wajah — ${daftarWajah?.name ?? ''}`}
+        footer={
+          <>
+            <button className="btn-ghost" onClick={() => { setDaftarWajah(null); setFotoWajah(null); }}>Batal</button>
+            <button className="btn-primary" onClick={simpanWajah} disabled={!fotoWajah || prosesWajah}>
+              {prosesWajah ? 'Memproses…' : 'Daftarkan Wajah'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] leading-relaxed text-muted">
+            Unggah satu foto wajah yang menghadap kamera dengan pencahayaan cukup. Sistem mengambil
+            ciri wajah dari foto tersebut, lalu mencocokkannya setiap kali yang bersangkutan
+            melakukan presensi masuk.
+          </p>
+          {fotoWajah ? (
+            <div className="flex items-center gap-4">
+              <img src={fotoWajah} alt="Foto wajah" className="h-32 w-32 rounded-2xl border border-line object-cover" />
+              <button className="btn-ghost btn-sm" onClick={() => setFotoWajah(null)}>Ganti foto</button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-abyss/50 px-6 py-10 text-center transition hover:border-amber/50">
+              <ScanFace size={26} className="text-amber" />
+              <span className="text-[13px] font-semibold">Pilih foto wajah</span>
+              <span className="text-[11px] text-muted">Format JPG atau PNG, wajah terlihat jelas</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && unggahWajah(e.target.files[0])}
+              />
+            </label>
+          )}
+          {daftarWajah?.faceEnrolledAt && (
+            <div className="rounded-xl border border-line/70 bg-abyss/40 px-4 py-3 text-[12px] text-muted">
+              Wajah sudah terdaftar sebelumnya. Mengunggah foto baru akan menggantikan data lama.
+            </div>
           )}
         </div>
       </Modal>

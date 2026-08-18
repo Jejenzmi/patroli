@@ -2,8 +2,8 @@
 import pathlib
 from PIL import Image
 
-src = pathlib.Path("/root/panduan/img")
-dst = pathlib.Path("/root/panduan/imgopt")
+src = pathlib.Path(__file__).parent / "img"
+dst = pathlib.Path(__file__).parent / "imgopt"
 dst.mkdir(exist_ok=True)
 total_awal = total_akhir = 0
 

@@ -165,6 +165,16 @@ async function main() {
         })
       );
     }
+    // Lantai beserta penempatan titik pada denah (FR-MST-002, FR-MST-003)
+    const lantai = [];
+    for (const [i, nama] of ['Basement', 'Lantai 1', 'Lantai 2'].entries()) {
+      lantai.push(
+        await prisma.floor.create({
+          data: { siteId: site.id, name: nama, level: i, notes: `Denah skematik ${nama}` },
+        })
+      );
+    }
+
     const checkpoints = [];
     for (let i = 0; i < cpTemplates.length; i++) {
       checkpoints.push(
@@ -179,6 +189,9 @@ async function main() {
             lng: jitter(site.lng, site.radiusM * 1.4),
             radiusM: 40,
             nfcTag: `NFC-${site.code}-${i + 1}`,
+            floorId: lantai[i % lantai.length].id,
+            planX: 12 + ((i * 23) % 76),
+            planY: 14 + ((i * 37) % 72),
           },
         })
       );
@@ -207,6 +220,15 @@ async function main() {
       },
     });
     routesBySite[site.id] = [r1.id, r2.id];
+
+    // Regu jaga (FR-MST-005)
+    await prisma.team.createMany({
+      data: [
+        { siteId: site.id, code: `${site.code}-RGU-A`, name: 'Regu A', notes: 'Regu shift pagi' },
+        { siteId: site.id, code: `${site.code}-RGU-B`, name: 'Regu B', notes: 'Regu shift sore' },
+        { siteId: site.id, code: `${site.code}-RGU-C`, name: 'Regu C', notes: 'Regu shift malam' },
+      ],
+    });
 
     await prisma.shift.createMany({
       data: [
@@ -336,7 +358,7 @@ async function main() {
                 method: chance(0.75) ? 'QR' : chance(0.5) ? 'NFC' : 'GPS',
                 lat: jitter(rc.checkpoint.lat, 25), lng: jitter(rc.checkpoint.lng, 25),
                 distanceM: rnd(30),
-                condition: issue ? 'ISSUE' : 'NORMAL',
+                condition: issue ? (chance(0.45) ? 'BERMASALAH' : 'PERLU_PERHATIAN') : 'AMAN',
                 note: issue ? pick(['Lampu mati', 'Pagar penyok', 'Pintu tidak terkunci', 'Genangan air', 'CCTV buram']) : null,
                 isLate: chance(0.12),
                 orderIndex: rc.orderIndex,
@@ -510,6 +532,162 @@ async function main() {
       { key: 'patrol.min_rounds_per_shift', value: 2 },
       { key: 'tracking.ping_interval_sec', value: 60 },
     ],
+  });
+
+  /* ── Anggota dimasukkan ke regu ── */
+  const semuaRegu = await prisma.team.findMany();
+  for (const g of guards) {
+    const reguSite = semuaRegu.filter((r) => r.siteId === g.homeSiteId);
+    if (reguSite.length)
+      await prisma.user.update({
+        where: { id: g.id },
+        data: { teamId: pick(reguSite).id },
+      });
+  }
+
+  /* ── Tugas insidental (FR-TASK-001) ── */
+  const contohTugas = [
+    ['Pemeriksaan APAR lantai 1', 'Periksa tekanan, segel, dan masa berlaku seluruh APAR.', 'TINGGI'],
+    ['Pengawalan setoran ke bank', 'Dampingi kasir saat penyetoran, catat jam berangkat dan tiba.', 'MENDESAK'],
+    ['Pendampingan tamu audit', 'Dampingi tim audit selama berada di area produksi.', 'NORMAL'],
+    ['Periksa pagar sisi timur', 'Cek kerusakan pagar setelah laporan warga.', 'NORMAL'],
+    ['Uji sirene kebakaran', 'Uji fungsi sirene bersama teknisi, catat hasilnya.', 'RENDAH'],
+  ];
+  for (let i = 0; i < 14; i++) {
+    const t = contohTugas[i % contohTugas.length];
+    const g = pick(guards);
+    const status = pick(['BARU', 'DIKERJAKAN', 'SELESAI', 'SELESAI'] as const);
+    const dibuat = dayjs().subtract(rnd(10), 'day');
+    await prisma.task.create({
+      data: {
+        siteId: g.homeSiteId!,
+        assigneeId: g.id,
+        createdById: pick(supervisors).id,
+        title: t[0],
+        description: t[1],
+        priority: t[2] as any,
+        status,
+        dueAt: dibuat.add(1 + rnd(3), 'day').toDate(),
+        startedAt: status !== 'BARU' ? dibuat.add(2, 'hour').toDate() : null,
+        finishedAt: status === 'SELESAI' ? dibuat.add(5, 'hour').toDate() : null,
+        result: status === 'SELESAI' ? 'Selesai dikerjakan, tidak ada temuan berarti.' : null,
+        createdAt: dibuat.toDate(),
+      },
+    });
+  }
+
+  /* ── Instruksi (FR-TASK-003) ── */
+  for (const [judul, isi, mendesak] of [
+    ['Perketat pemeriksaan kendaraan keluar', 'Seluruh kendaraan keluar wajib diperiksa muatannya dan dicatat.', false],
+    ['Apel malam dimajukan', 'Apel malam dimajukan menjadi pukul 22.30 mulai hari ini.', true],
+    ['Pemeliharaan lampu perimeter', 'Teknisi akan bekerja di sisi barat, dampingi selama pekerjaan.', false],
+  ] as const) {
+    await prisma.instruction.create({
+      data: {
+        senderId: pick(supervisors).id,
+        siteId: pick(sites).id,
+        title: judul,
+        body: isi,
+        urgent: mendesak,
+        createdAt: dayjs().subtract(rnd(6), 'day').toDate(),
+      },
+    });
+  }
+
+  /* ── Penilaian manual Danru & Klien (FR-KPI-002) ── */
+  const periodeIni = dayjs().format('YYYY-MM');
+  const periodeLalu = dayjs().subtract(1, 'month').format('YYYY-MM');
+  for (const periode of [periodeLalu, periodeIni]) {
+    for (const g of guards) {
+      const nilai = () => 3 + rnd(3);
+      await prisma.assessment.create({
+        data: {
+          guardId: g.id,
+          assessorId: pick(supervisors).id,
+          assessorRole: 'DANRU',
+          period: periode,
+          disiplin: nilai(),
+          penampilan: nilai(),
+          responsif: nilai(),
+          kualitasLaporan: nilai(),
+          komunikasi: nilai(),
+          note: 'Penilaian rutin bulanan.',
+        },
+      });
+      // Klien menilai anggota pada site miliknya
+      if (g.homeSiteId === sites[0].id || g.homeSiteId === sites[1].id) {
+        await prisma.assessment.create({
+          data: {
+            guardId: g.id,
+            assessorId: clientUser.id,
+            assessorRole: 'KLIEN',
+            period: periode,
+            disiplin: nilai(),
+            penampilan: nilai(),
+            responsif: nilai(),
+            kualitasLaporan: nilai(),
+            komunikasi: nilai(),
+            note: 'Penilaian dari perwakilan klien.',
+          },
+        });
+      }
+    }
+  }
+
+  /* ── Pengajuan cuti, izin, dan lembur ── */
+  for (let i = 0; i < 8; i++) {
+    const g = pick(guards);
+    const mulai = dayjs().add(rnd(20) - 5, 'day');
+    const jenis = pick(['CUTI', 'IZIN', 'LEMBUR'] as const);
+    const status = pick(['DIAJUKAN', 'DISETUJUI', 'DITOLAK', 'DISETUJUI'] as const);
+    await prisma.leaveRequest.create({
+      data: {
+        userId: g.id,
+        type: jenis,
+        startDate: mulai.toDate(),
+        endDate: mulai.add(jenis === 'LEMBUR' ? 0 : rnd(3), 'day').toDate(),
+        hours: jenis === 'LEMBUR' ? 2 + rnd(4) : null,
+        reason: pick([
+          'Keperluan keluarga',
+          'Menghadiri acara pernikahan saudara',
+          'Kondisi kesehatan',
+          'Penambahan jam jaga menggantikan rekan',
+        ]),
+        status,
+        approverId: status === 'DIAJUKAN' ? null : pick(supervisors).id,
+        decidedAt: status === 'DIAJUKAN' ? null : mulai.subtract(1, 'day').toDate(),
+        decisionNote: status === 'DITOLAK' ? 'Kekuatan regu tidak mencukupi pada tanggal tersebut.' : null,
+      },
+    });
+  }
+
+  /* ── Percobaan presensi yang ditolak (FR-ATT-006) ── */
+  for (let i = 0; i < 12; i++) {
+    const g = pick(guards);
+    const jarak = 150 + rnd(900);
+    const luar = chance(0.6);
+    await prisma.attendanceAttempt.create({
+      data: {
+        guardId: g.id,
+        siteId: g.homeSiteId!,
+        result: luar ? 'DILUAR_RADIUS' : 'WAJAH_TIDAK_COCOK',
+        reason: luar
+          ? `Anda berada ${jarak} m dari pos (batas 400 m). Presensi harus dilakukan di area site.`
+          : 'Wajah tidak cocok dengan data terdaftar. Presensi ditolak.',
+        lat: jitter(sites[0].lat, 2000),
+        lng: jitter(sites[0].lng, 2000),
+        distanceM: luar ? jarak : rnd(80),
+        faceScore: luar ? null : 30 + rnd(25),
+        createdAt: dayjs().subtract(rnd(14), 'day').hour(6 + rnd(12)).toDate(),
+      },
+    });
+  }
+
+  await prisma.setting.create({
+    data: {
+      key: 'kpi.bobot',
+      value: { kehadiran: 25, patroli: 30, ronde: 15, pelaporan: 10, penilaian: 20 },
+    },
   });
 
   console.log(`▸ Selesai. ${guards.length + supervisors.length + 3} pengguna, ${sites.length} site, ${patrolCount} sesi patroli.`);

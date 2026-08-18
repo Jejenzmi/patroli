@@ -13,6 +13,8 @@ import { prisma } from './lib/prisma';
 import { ensureBucket } from './lib/storage';
 import { initWs } from './lib/ws';
 import { redis } from './lib/redis';
+import { mulaiPenjadwalRetensi } from './lib/retention';
+import { wajahDiaktifkan } from './lib/face';
 
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -23,6 +25,8 @@ import incidentRoutes from './routes/incidents';
 import frontdeskRoutes from './routes/frontdesk';
 import reportRoutes from './routes/reports';
 import uploadRoutes from './routes/uploads';
+import taskRoutes from './routes/tasks';
+import kpiRoutes from './routes/kpi';
 
 const app = express();
 const PORT = Number(process.env.PORT || 5027);
@@ -44,7 +48,12 @@ app.use('/api', rateLimit({ windowMs: 60_000, max: 600, standardHeaders: true, l
 app.get('/api/health', async (_req, res) => {
   const db = await prisma.$queryRaw`SELECT 1`.then(() => 'ok').catch(() => 'down');
   const cache = await redis.ping().then(() => 'ok').catch(() => 'down');
-  res.json({ status: 'ok', service: 'patroli-api', db, cache, time: new Date().toISOString() });
+  const face = wajahDiaktifkan()
+    ? await fetch(`${process.env.FACE_SERVICE_URL}/health`)
+        .then((r) => (r.ok ? 'ok' : 'down'))
+        .catch(() => 'down')
+    : 'nonaktif';
+  res.json({ status: 'ok', service: 'patroli-api', db, cache, face, time: new Date().toISOString() });
 });
 
 app.use('/api/auth', authRoutes);
@@ -56,6 +65,8 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/frontdesk', frontdeskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/kpi', kpiRoutes);
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
 
@@ -73,6 +84,7 @@ initWs(server);
 
 async function bootstrap() {
   await ensureBucket().catch((e) => console.warn('[minio] bucket:', e.message));
+  mulaiPenjadwalRetensi();
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`▸ PATROLI API siap di :${PORT}`);
   });

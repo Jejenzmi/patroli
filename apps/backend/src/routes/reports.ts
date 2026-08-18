@@ -351,8 +351,20 @@ router.get('/feed', async (req, res) => {
       type: 'SCAN' as const,
       at: s.scannedAt,
       title: `${s.session.guard.name} memindai ${s.checkpoint.name}`,
-      meta: s.condition === 'ISSUE' ? 'Ada temuan' : s.isLate ? 'Terlambat' : 'Normal',
-      severity: s.condition === 'ISSUE' ? 'HIGH' : s.isLate ? 'MEDIUM' : 'LOW',
+      meta:
+        s.condition === 'BERMASALAH'
+          ? 'Titik bermasalah'
+          : s.condition === 'PERLU_PERHATIAN'
+            ? 'Perlu perhatian'
+            : s.isLate
+              ? 'Terlambat'
+              : 'Aman',
+      severity:
+        s.condition === 'BERMASALAH'
+          ? 'HIGH'
+          : s.condition === 'PERLU_PERHATIAN' || s.isLate
+            ? 'MEDIUM'
+            : 'LOW',
       avatarUrl: s.session.guard.avatarUrl,
     })),
     ...incidents.map((i) => ({
@@ -384,6 +396,43 @@ router.get('/feed', async (req, res) => {
     .slice(0, 25);
 
   res.json(feed);
+});
+
+/** Rekap tombol darurat pada satu periode (FR-REP-002). */
+router.get('/panic/summary', async (req, res) => {
+  const { from, to } = range(req);
+  const scope = clientScope(req);
+  const rows = await prisma.panicAlert.findMany({
+    where: { createdAt: { gte: from, lte: to }, ...scope },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      guard: { select: { id: true, name: true, employeeId: true } },
+      site: { select: { id: true, name: true } },
+      acknowledgedBy: { select: { id: true, name: true } },
+      floor: { select: { name: true } },
+    },
+  });
+
+  const direspons = rows.filter((r) => r.acknowledgedAt);
+  const rataRespons = direspons.length
+    ? direspons.reduce(
+        (a, r) => a + (r.acknowledgedAt!.getTime() - r.createdAt.getTime()) / 60000,
+        0
+      ) / direspons.length
+    : 0;
+  const selesai = rows.filter((r) => r.resolvedAt);
+  const rataTuntas = selesai.length
+    ? selesai.reduce((a, r) => a + (r.resolvedAt!.getTime() - r.createdAt.getTime()) / 60000, 0) /
+      selesai.length
+    : 0;
+
+  res.json({
+    total: rows.length,
+    aktif: rows.filter((r) => r.status === 'ACTIVE').length,
+    rataResponsMenit: Math.round(rataRespons * 10) / 10,
+    rataTuntasMenit: Math.round(rataTuntas * 10) / 10,
+    data: rows.slice(0, 100),
+  });
 });
 
 /** Ekspor CSV: patroli, insiden, presensi. */
@@ -454,6 +503,48 @@ router.get('/export/:kind', allow(...COMMAND, 'CLIENT'), async (req, res) => {
         a.status,
         String(a.lateMinutes),
         String(a.workedMinutes),
+      ]),
+    ];
+  } else if (kind === 'panic') {
+    const data = await prisma.panicAlert.findMany({
+      where: { createdAt: { gte: from, lte: to }, ...scope },
+      orderBy: { createdAt: 'desc' },
+      include: { guard: true, site: true, acknowledgedBy: true },
+    });
+    rows = [
+      ['Waktu', 'Anggota', 'Site', 'Pesan', 'Status', 'Direspons oleh', 'Waktu respons (mnt)', 'Selesai (mnt)'],
+      ...data.map((p) => [
+        dayjs(p.createdAt).tz(TZ).format('YYYY-MM-DD HH:mm'),
+        p.guard.name,
+        p.site.name,
+        p.message || '-',
+        p.status,
+        p.acknowledgedBy?.name || '-',
+        p.acknowledgedAt
+          ? String(Math.round((p.acknowledgedAt.getTime() - p.createdAt.getTime()) / 60000))
+          : '-',
+        p.resolvedAt
+          ? String(Math.round((p.resolvedAt.getTime() - p.createdAt.getTime()) / 60000))
+          : '-',
+      ]),
+    ];
+  } else if (kind === 'attempts') {
+    const data = await prisma.attendanceAttempt.findMany({
+      where: { createdAt: { gte: from, lte: to }, ...scope },
+      orderBy: { createdAt: 'desc' },
+      include: { guard: true, site: true },
+    });
+    rows = [
+      ['Waktu', 'Anggota', 'NIP', 'Site', 'Sebab penolakan', 'Keterangan', 'Jarak (m)', 'Skor wajah'],
+      ...data.map((a) => [
+        dayjs(a.createdAt).tz(TZ).format('YYYY-MM-DD HH:mm'),
+        a.guard.name,
+        a.guard.employeeId || '-',
+        a.site.name,
+        a.result,
+        a.reason,
+        a.distanceM != null ? String(a.distanceM) : '-',
+        a.faceScore != null ? String(a.faceScore) : '-',
       ]),
     ];
   } else {

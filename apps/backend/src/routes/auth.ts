@@ -84,8 +84,9 @@ router.get('/me', auth, async (req, res) => {
     },
   });
   if (!user) return res.status(404).json({ message: 'Pengguna tidak ditemukan' });
-  const { passwordHash, ...safe } = user as any;
-  res.json(safe);
+  // Template wajah tidak pernah dikirim ke perangkat; cukup penanda terdaftar.
+  const { passwordHash, faceTemplate, ...safe } = user as any;
+  res.json({ ...safe, faceEnrolled: !!user.faceEnrolledAt });
 });
 
 router.post('/change-password', auth, async (req, res) => {

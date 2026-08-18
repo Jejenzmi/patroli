@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND, ADMIN_ONLY } from '../middleware/auth';
 import { parsePaging, allowedSiteIds, isCommand } from '../lib/scope';
+import { ciriDariUrl, wajahDiaktifkan } from '../lib/face';
 import { audit } from '../lib/notify';
 
 const router = Router();
@@ -43,6 +45,8 @@ router.get('/', allow(...COMMAND, 'CLIENT'), async (req, res) => {
         avatarUrl: true,
         joinedAt: true,
         lastLoginAt: true,
+        faceEnrolledAt: true,
+        team: { select: { id: true, name: true } },
         homeSite: { select: { id: true, name: true } },
         client: { select: { id: true, name: true } },
       },
@@ -109,6 +113,43 @@ router.delete('/:id', allow(...ADMIN_ONLY), async (req, res) => {
   await prisma.user.update({ where: { id: req.params.id }, data: { status: 'RESIGNED' } });
   await audit(req.user!.sub, 'DEACTIVATE', 'User', req.params.id, null, req.ip);
   res.json({ message: 'Personel dinonaktifkan' });
+});
+
+/** Mendaftarkan wajah personel dari foto (FR-ATT-005). */
+router.post('/:id/face', async (req, res) => {
+  const target = req.params.id;
+  // Personel dapat mendaftarkan wajahnya sendiri; selebihnya hanya administrator.
+  if (target !== req.user!.sub && !['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role))
+    return res.status(403).json({ message: 'Hak akses tidak mencukupi' });
+  if (!wajahDiaktifkan())
+    return res.status(503).json({ message: 'Layanan pengenalan wajah belum aktif' });
+
+  const photoUrl = String(req.body?.photoUrl || '');
+  if (!photoUrl) return res.status(400).json({ message: 'Foto wajah wajib diunggah lebih dulu' });
+
+  const ciri = await ciriDariUrl(photoUrl);
+  if (!ciri)
+    return res.status(422).json({
+      message: 'Wajah tidak terdeteksi. Gunakan foto menghadap kamera dengan pencahayaan cukup.',
+    });
+
+  await prisma.user.update({
+    where: { id: target },
+    data: { faceTemplate: ciri, faceEnrolledAt: new Date(), avatarUrl: photoUrl },
+  });
+  await audit(req.user!.sub, 'ENROLL_FACE', 'User', target, null, req.ip);
+  res.json({ message: 'Wajah berhasil didaftarkan', dimensi: ciri.length });
+});
+
+/** Menghapus template wajah personel. */
+router.delete('/:id/face', allow(...ADMIN_ONLY), async (req, res) => {
+  await prisma.user.update({
+    where: { id: req.params.id },
+    // Prisma mengabaikan undefined, jadi penghapusan harus memakai DbNull.
+    data: { faceTemplate: Prisma.DbNull, faceEnrolledAt: null },
+  });
+  await audit(req.user!.sub, 'RESET_FACE', 'User', req.params.id, null, req.ip);
+  res.json({ message: 'Template wajah dihapus' });
 });
 
 /** Ringkasan kinerja satu anggota — dipakai halaman profil personel & aplikasi lapangan. */

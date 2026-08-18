@@ -51,8 +51,9 @@ enum ScanMethod {
 }
 
 enum CheckpointCondition {
-  NORMAL
-  ISSUE
+  AMAN
+  PERLU_PERHATIAN
+  BERMASALAH
 }
 
 enum Severity {
@@ -90,6 +91,46 @@ enum EquipmentStatus {
   DAMAGED
 }
 
+
+enum TaskPriority {
+  RENDAH
+  NORMAL
+  TINGGI
+  MENDESAK
+}
+
+enum TaskStatus {
+  BARU
+  DIKERJAKAN
+  SELESAI
+  DIBATALKAN
+}
+
+enum AssessorRole {
+  DANRU
+  KLIEN
+}
+
+enum LeaveType {
+  CUTI
+  IZIN
+  LEMBUR
+}
+
+enum LeaveStatus {
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+}
+
+enum AttemptResult {
+  DILUAR_RADIUS
+  WAJAH_TIDAK_COCOK
+  WAJAH_TIDAK_TERDETEKSI
+  SUDAH_MASUK
+  LAINNYA
+}
+
 model User {
   id           String     @id @default(cuid())
   employeeId   String?    @unique
@@ -108,6 +149,11 @@ model User {
   homeSiteId   String?
   homeSite     Site?      @relation("HomeSite", fields: [homeSiteId], references: [id])
   rank         String?
+  /// Ciri wajah terdaftar (vektor 128 dimensi) untuk verifikasi presensi
+  faceTemplate Json?
+  faceEnrolledAt DateTime?
+  teamId       String?
+  team         Team?      @relation(fields: [teamId], references: [id])
   joinedAt     DateTime?
   lastLoginAt  DateTime?
   deviceToken  String?
@@ -131,6 +177,15 @@ model User {
   auditLogs        AuditLog[]
   visitorsHandled  Visitor[]
   vehicleLogs      VehicleLog[]
+  tasksAssigned    Task[]           @relation("TaskPetugas")
+  tasksCreated     Task[]           @relation("TaskPembuat")
+  instructionsSent Instruction[]
+  instructionReads InstructionRead[]
+  assessmentsGiven Assessment[]     @relation("Penilai")
+  assessmentsGot   Assessment[]     @relation("Dinilai")
+  leaveRequests    LeaveRequest[]   @relation("Pemohon")
+  leaveApprovals   LeaveRequest[]   @relation("Penyetuju")
+  attendanceAttempts AttendanceAttempt[]
 
   @@index([role, status])
 }
@@ -188,6 +243,11 @@ model Site {
   handovers   Handover[]
   equipment   Equipment[]
   homeUsers   User[]          @relation("HomeSite")
+  floors      Floor[]
+  teams       Team[]
+  tasks       Task[]
+  instructions Instruction[]
+  attendanceAttempts AttendanceAttempt[]
 
   @@index([clientId])
 }
@@ -221,6 +281,11 @@ model Checkpoint {
   radiusM     Int      @default(30)
   nfcTag      String?
   photoUrl    String?
+  floorId     String?
+  floor       Floor?   @relation(fields: [floorId], references: [id])
+  /// Posisi titik pada denah lantai, dalam persen 0–100 dari sisi kiri & atas
+  planX       Float?
+  planY       Float?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -330,6 +395,8 @@ model Attendance {
   checkOutLng    Float?
   checkOutPhoto  String?
   status         AttendanceStatus @default(ON_TIME)
+  /// Skor kemiripan wajah 0–100 saat presensi masuk
+  faceScore      Float?
   lateMinutes    Int              @default(0)
   workedMinutes  Int              @default(0)
   notes          String?
@@ -384,9 +451,11 @@ model PatrolScan {
   distanceM    Int?
   photoUrl     String?
   note         String?
-  condition    CheckpointCondition @default(NORMAL)
+  condition    CheckpointCondition @default(AMAN)
   isLate       Boolean             @default(false)
   orderIndex   Int                 @default(0)
+  /// Ditandai bila jarak pemindaian jauh di luar toleransi titik
+  distanceFlag Boolean             @default(false)
 
   @@unique([sessionId, checkpointId])
   @@index([checkpointId, scannedAt])
@@ -459,6 +528,9 @@ model PanicAlert {
   lat             Float?
   lng             Float?
   message         String?
+  /// Lantai terakhir berdasarkan titik QR yang terakhir dipindai
+  floorId         String?
+  floor           Floor?      @relation(fields: [floorId], references: [id])
   status          PanicStatus @default(ACTIVE)
   acknowledgedById String?
   acknowledgedBy  User?       @relation("PanicAck", fields: [acknowledgedById], references: [id])
@@ -612,6 +684,162 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([entity, createdAt])
+}
+
+
+/// Lantai pada satu site beserta denah skematiknya (FR-MST-002, FR-GPS-003)
+model Floor {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name      String
+  level     Int      @default(0)
+  planUrl   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  checkpoints Checkpoint[]
+  panics      PanicAlert[]
+
+  @@index([siteId, level])
+}
+
+/// Regu jaga (FR-MST-005)
+model Team {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name      String
+  code      String   @unique
+  leaderId  String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      User[]
+  instructions Instruction[]
+
+  @@index([siteId])
+}
+
+/// Pekerjaan insidental (FR-TASK-001..002)
+model Task {
+  id          String       @id @default(cuid())
+  siteId      String
+  site        Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  assigneeId  String
+  assignee    User         @relation("TaskPetugas", fields: [assigneeId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User         @relation("TaskPembuat", fields: [createdById], references: [id])
+  title       String
+  description String?
+  priority    TaskPriority @default(NORMAL)
+  status      TaskStatus   @default(BARU)
+  dueAt       DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  result      String?
+  proofUrls   Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([assigneeId, status])
+  @@index([siteId, createdAt])
+}
+
+/// Instruksi kepada individu atau regu (FR-TASK-003..004)
+model Instruction {
+  id        String   @id @default(cuid())
+  siteId    String?
+  site      Site?    @relation(fields: [siteId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
+  title     String
+  body      String
+  urgent    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  reads InstructionRead[]
+
+  @@index([createdAt])
+}
+
+model InstructionRead {
+  id            String      @id @default(cuid())
+  instructionId String
+  instruction   Instruction @relation(fields: [instructionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt        DateTime    @default(now())
+
+  @@unique([instructionId, userId])
+}
+
+/// Penilaian manual oleh Danru dan Klien (FR-KPI-002)
+model Assessment {
+  id          String       @id @default(cuid())
+  guardId     String
+  guard       User         @relation("Dinilai", fields: [guardId], references: [id], onDelete: Cascade)
+  assessorId  String
+  assessor    User         @relation("Penilai", fields: [assessorId], references: [id])
+  assessorRole AssessorRole
+  /// Periode penilaian dalam format YYYY-MM
+  period      String
+  disiplin    Int
+  penampilan  Int
+  responsif   Int
+  kualitasLaporan Int
+  komunikasi  Int
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([guardId, assessorId, period])
+  @@index([guardId, period])
+}
+
+/// Pengajuan cuti, izin, dan lembur beserta persetujuannya
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation("Pemohon", fields: [userId], references: [id], onDelete: Cascade)
+  type       LeaveType   @default(CUTI)
+  startDate  DateTime
+  endDate    DateTime
+  hours      Float?
+  reason     String
+  status     LeaveStatus @default(DIAJUKAN)
+  approverId String?
+  approver   User?       @relation("Penyetuju", fields: [approverId], references: [id])
+  decidedAt  DateTime?
+  decisionNote String?
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, status])
+}
+
+/// Percobaan presensi yang ditolak, disimpan sebagai bukti (FR-ATT-006)
+model AttendanceAttempt {
+  id         String        @id @default(cuid())
+  guardId    String
+  guard      User          @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  siteId     String
+  site       Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  result     AttemptResult
+  reason     String
+  lat        Float?
+  lng        Float?
+  distanceM  Int?
+  faceScore  Float?
+  photoUrl   String?
+  createdAt  DateTime      @default(now())
+
+  @@index([guardId, createdAt])
+  @@index([siteId, createdAt])
 }
 
 model Setting {

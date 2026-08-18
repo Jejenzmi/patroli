@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
   RadarChart, PolarGrid, PolarAngleAxis, Radar as RadarShape, LineChart, Line, Legend,
 } from 'recharts';
-import { BarChart3, Download, Building2, TrendingDown, Trophy, FileSpreadsheet } from 'lucide-react';
+import { BarChart3, Download, Building2, TrendingDown, Trophy, FileSpreadsheet, Siren } from 'lucide-react';
 import { api, qs } from '../lib/api';
 import { Panel, PageHead, Table, Loading, Empty, Avatar, Bar as ProgressBar, Stat } from '../components/ui';
 import { dayjs, num, pct } from '../lib/format';
@@ -19,6 +19,7 @@ export default function Reports() {
   const missed = useQuery({ queryKey: ['missed', from, to], queryFn: () => api.get('/reports/checkpoints/missed' + range) });
   const trend = useQuery({ queryKey: ['trend30'], queryFn: () => api.get('/reports/trend/compliance?days=30') });
   const incSum = useQuery({ queryKey: ['inc-sum', from, to], queryFn: () => api.get('/reports/incidents/summary' + range) });
+  const panic = useQuery({ queryKey: ['panic-sum', from, to], queryFn: () => api.get('/reports/panic/summary' + range) });
 
   const sites = siteSum.data || [];
   const totalPatrols = sites.reduce((a: number, s: any) => a + s.patrols, 0);
@@ -45,6 +46,8 @@ export default function Reports() {
             { k: 'patrols', l: 'Rekap Sesi Patroli' },
             { k: 'incidents', l: 'Rekap Insiden' },
             { k: 'attendance', l: 'Rekap Presensi' },
+            { k: 'panic', l: 'Rekap Sinyal Darurat' },
+            { k: 'attempts', l: 'Percobaan Presensi Ditolak' },
           ].map((x) => (
             <button key={x.k} className="btn-ghost btn-sm" onClick={() => api.downloadCsv(x.k, { from, to })}>
               <FileSpreadsheet size={13} /> {x.l} (CSV)
@@ -89,6 +92,47 @@ export default function Reports() {
           </div>
         </Panel>
       </div>
+
+      <Panel title="Rekap Tombol Darurat" icon={Siren} className="mt-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { l: 'Total sinyal', v: num(panic.data?.total), c: 'text-cyan' },
+            { l: 'Masih aktif', v: num(panic.data?.aktif), c: 'text-danger' },
+            { l: 'Rata-rata waktu respons', v: `${panic.data?.rataResponsMenit ?? 0} mnt`, c: 'text-amber' },
+            { l: 'Rata-rata waktu tuntas', v: `${panic.data?.rataTuntasMenit ?? 0} mnt`, c: 'text-emerald' },
+          ].map((x) => (
+            <div key={x.l} className="rounded-xl border border-line/70 bg-abyss/40 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[.14em] text-muted">{x.l}</p>
+              <p className={`num mt-1 text-xl font-extrabold ${x.c}`}>{x.v}</p>
+            </div>
+          ))}
+        </div>
+        {panic.data?.data?.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table>
+              <thead>
+                <tr>{['Waktu', 'Anggota', 'Site', 'Lantai', 'Status', 'Respons'].map((h) => <th key={h}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {panic.data.data.slice(0, 8).map((p: any) => (
+                  <tr key={p.id}>
+                    <td className="num text-[12px]">{dayjs(p.createdAt).format('DD MMM · HH:mm')}</td>
+                    <td className="text-[12.5px]">{p.guard?.name}</td>
+                    <td className="text-[12px] text-muted">{p.site?.name}</td>
+                    <td className="text-[12px] text-muted">{p.floor?.name || '—'}</td>
+                    <td className="text-[12px]">{p.status}</td>
+                    <td className="num text-[12px]">
+                      {p.acknowledgedAt
+                        ? `${Math.round((new Date(p.acknowledgedAt).getTime() - new Date(p.createdAt).getTime()) / 60000)} mnt`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Rekapitulasi per Site" icon={Building2} className="mt-4" bodyClass="p-0">
         {siteSum.isLoading ? (

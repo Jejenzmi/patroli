@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND } from '../middleware/auth';
 import { SLA_HOURS, WS_EVENTS, type IncidentSeverity } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
-import { audit, notifyCommand, notifyUsers } from '../lib/notify';
+import { audit, notifyCommand, notifyUsers, klienDariSite } from '../lib/notify';
 import { parsePaging, bolehSite, isCommand } from '../lib/scope';
 import { getPresence } from '../lib/redis';
 
@@ -236,24 +236,36 @@ router.post('/panic/trigger', allow(...COMMAND, 'GUARD'), async (req, res) => {
   const p = schema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Site wajib dikirim' });
 
+  // FR-PAN-002: lantai terakhir diambil dari titik QR yang paling akhir dipindai.
+  const scanTerakhir = await prisma.patrolScan.findFirst({
+    where: { session: { guardId: req.user!.sub } },
+    orderBy: { scannedAt: 'desc' },
+    select: { checkpoint: { select: { floorId: true } } },
+  });
+
   const alert = await prisma.panicAlert.create({
-    data: { guardId: req.user!.sub, ...(p.data as any) },
+    data: {
+      guardId: req.user!.sub,
+      floorId: scanTerakhir?.checkpoint.floorId ?? null,
+      ...(p.data as any),
+    },
     include: {
       guard: { select: { id: true, name: true, phone: true, avatarUrl: true, employeeId: true } },
       site: { select: { id: true, name: true, lat: true, lng: true, picPhone: true } },
+      floor: { select: { id: true, name: true, level: true } },
     },
   });
 
   emitOps(WS_EVENTS.PANIC, alert, alert.siteId);
-  await notifyCommand(
-    {
-      type: 'PANIC',
-      title: '🚨 SINYAL DARURAT',
-      body: `${alert.guard.name} menekan tombol darurat di ${alert.site.name}`,
-      data: { panicId: alert.id, lat: alert.lat, lng: alert.lng },
-    },
-    alert.siteId
-  );
+  const isiNotifikasi = {
+    type: 'PANIC',
+    title: '🚨 SINYAL DARURAT',
+    body: `${alert.guard.name} menekan tombol darurat di ${alert.site.name}`,
+    data: { panicId: alert.id, lat: alert.lat, lng: alert.lng },
+  };
+  await notifyCommand(isiNotifikasi, alert.siteId);
+  // FR-PAN-003: klien pemilik site menerima pemberitahuan pada saat yang sama.
+  await notifyUsers(await klienDariSite(alert.siteId), isiNotifikasi);
   await audit(req.user!.sub, 'PANIC', 'PanicAlert', alert.id, null, req.ip);
   res.status(201).json(alert);
 });

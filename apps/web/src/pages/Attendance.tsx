@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Fingerprint, Download, Camera, MapPin } from 'lucide-react';
+import { Fingerprint, Download, Camera, MapPin, ShieldAlert, ScanFace } from 'lucide-react';
 import { api, qs } from '../lib/api';
 import { Panel, PageHead, Table, Chip, Avatar, Loading, Empty, Select, Stat } from '../components/ui';
 import { dt, t, num, dayjs } from '../lib/format';
 
 export default function Attendance() {
+  const [tab, setTab] = useState<'catatan' | 'ditolak'>('catatan');
   const [siteId, setSiteId] = useState('');
   const [from, setFrom] = useState(dayjs().subtract(6, 'day').format('YYYY-MM-DD'));
   const [to, setTo] = useState(dayjs().format('YYYY-MM-DD'));
@@ -14,6 +15,10 @@ export default function Attendance() {
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', siteId, from, to],
     queryFn: () => api.get('/schedules/attendance' + qs({ siteId, from, to, limit: 400 })),
+  });
+  const ditolak = useQuery({
+    queryKey: ['attempts', siteId],
+    queryFn: () => api.get('/schedules/attendance/attempts' + qs({ siteId, limit: 200 })),
   });
 
   const rows = data || [];
@@ -37,6 +42,22 @@ export default function Attendance() {
         <Stat label="Rata-rata Jam Kerja" value={`${(avgWorked / 60).toFixed(1)} jam`} icon={Fingerprint} tone="violet" />
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { k: 'catatan', l: 'Catatan Presensi', i: Fingerprint, n: rows.length },
+          { k: 'ditolak', l: 'Percobaan Ditolak', i: ShieldAlert, n: ditolak.data?.length },
+        ].map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k as any)}
+            className={`btn btn-sm ${tab === t.k ? 'bg-amber/15 text-amber shadow-[inset_0_0_0_1px_rgba(255,176,32,.35)]' : 'border border-line text-muted hover:text-ink'}`}
+          >
+            <t.i size={13} /> {t.l}
+            <span className="num ml-1 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px]">{t.n ?? 0}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
           <option value="">Semua site</option>
@@ -48,6 +69,61 @@ export default function Attendance() {
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
 
+      {tab === 'ditolak' ? (
+        <Panel
+          title="Percobaan Presensi yang Ditolak"
+          icon={ShieldAlert}
+          bodyClass="p-0"
+          action={
+            <button className="btn-ghost btn-sm" onClick={() => api.downloadCsv('attempts', { from, to })}>
+              <Download size={13} /> Ekspor
+            </button>
+          }
+        >
+          {ditolak.isLoading ? (
+            <Loading />
+          ) : !ditolak.data?.length ? (
+            <Empty text="Tidak ada percobaan yang ditolak" hint="Setiap penolakan presensi tersimpan lengkap dengan foto dan koordinatnya." />
+          ) : (
+            <Table head={['Waktu', 'Anggota', 'Site', 'Sebab', 'Jarak', 'Kemiripan wajah', 'Bukti']}>
+              {ditolak.data.map((a: any) => (
+                <tr key={a.id} className="transition hover:bg-white/[.025]">
+                  <td className="num text-[12.5px]">{dt(a.createdAt)}</td>
+                  <td>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={a.guard?.name} url={a.guard?.avatarUrl} size={28} />
+                      <div>
+                        <p className="text-[13px] font-semibold">{a.guard?.name}</p>
+                        <p className="num text-[10.5px] text-muted">{a.guard?.employeeId}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-[12px] text-muted">{a.site?.name}</td>
+                  <td>
+                    <span className={`chip ${a.result === 'DILUAR_RADIUS' ? 'border-amber/40 bg-amber/10 text-amber' : 'border-danger/45 bg-danger/12 text-danger'}`}>
+                      {a.result === 'DILUAR_RADIUS' ? 'Di luar radius' : a.result === 'WAJAH_TIDAK_COCOK' ? 'Wajah tidak cocok' : a.result === 'WAJAH_TIDAK_TERDETEKSI' ? 'Wajah tak terdeteksi' : 'Sudah presensi'}
+                    </span>
+                    <p className="mt-1 max-w-[260px] text-[11px] text-muted">{a.reason}</p>
+                  </td>
+                  <td className="num text-[12.5px]">{a.distanceM != null ? `${a.distanceM} m` : '—'}</td>
+                  <td className="num text-[12.5px]">
+                    {a.faceScore != null ? (
+                      <span className="flex items-center gap-1 text-danger"><ScanFace size={12} /> {a.faceScore}%</span>
+                    ) : '—'}
+                  </td>
+                  <td>
+                    {a.photoUrl ? (
+                      <a href={a.photoUrl} target="_blank" rel="noreferrer" className="btn-ghost btn-sm">
+                        <Camera size={12} /> Foto
+                      </a>
+                    ) : <span className="text-[11px] text-muted">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Panel>
+      ) : (
       <Panel title="Catatan Presensi" icon={Fingerprint} bodyClass="p-0">
         {isLoading ? (
           <Loading />
@@ -94,12 +170,18 @@ export default function Attendance() {
                   ) : (
                     <span className="text-[11px] text-muted">—</span>
                   )}
+                  {a.faceScore != null && (
+                    <p className="num mt-1 flex items-center gap-1 text-[10.5px] text-emerald">
+                      <ScanFace size={10} /> {a.faceScore}%
+                    </p>
+                  )}
                 </td>
               </tr>
             ))}
           </Table>
         )}
       </Panel>
+      )}
     </>
   );
 }

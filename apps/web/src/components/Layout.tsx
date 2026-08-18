@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Map, Route, ShieldCheck, CalendarDays, Fingerprint, AlertTriangle,
   Users, Building2, MapPin, UserSquare2, Car, ClipboardList, Boxes, Megaphone,
   BarChart3, ScrollText, LogOut, Bell, Menu, Radio, Siren, ChevronsLeft, ChevronsRight, Search,
+  ClipboardCheck, Trophy, Layers, CalendarClock,
 } from 'lucide-react';
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
@@ -28,6 +29,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/peta', label: 'Peta Situasi', icon: Map },
       { to: '/patroli', label: 'Sesi Patroli', icon: Route },
       { to: '/insiden', label: 'Insiden', icon: AlertTriangle },
+      { to: '/tugas', label: 'Tugas & Instruksi', icon: ClipboardCheck },
       { to: '/darurat', label: 'Sinyal Darurat', icon: Siren, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
     ],
   },
@@ -38,6 +40,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/presensi', label: 'Presensi', icon: Fingerprint },
       { to: '/personel', label: 'Data Personel', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/serah-terima', label: 'Serah Terima', icon: ClipboardList },
+      { to: '/cuti', label: 'Cuti & Lembur', icon: CalendarClock },
     ],
   },
   {
@@ -54,12 +57,14 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/klien', label: 'Klien', icon: Building2, roles: ['SUPER_ADMIN', 'ADMIN'] },
       { to: '/site', label: 'Site & Lokasi', icon: MapPin, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/titik', label: 'Titik & Rute', icon: ShieldCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
+      { to: '/lantai', label: 'Lantai & Regu', icon: Layers, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/pengumuman', label: 'Pengumuman', icon: Megaphone },
     ],
   },
   {
     group: 'Analitik',
     items: [
+      { to: '/kpi', label: 'Penilaian Kinerja', icon: Trophy, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/laporan', label: 'Laporan & Ekspor', icon: BarChart3 },
       { to: '/jejak-audit', label: 'Jejak Audit', icon: ScrollText, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
     ],

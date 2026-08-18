@@ -252,6 +252,121 @@ for peran, harap in [("GUARD", 403), ("CLIENT", 403), ("SUPERVISOR", 200), ("ADM
     kode, _ = panggil("GET", "/frontdesk/audit?limit=5", TOKEN[peran])
     cek(f"{peran} jejak audit → {harap}", kode == harap, f"kode {kode}")
 
+
+# ═══════════════ Modul BRD: tugas, instruksi, KPI, lantai, regu, cuti ═══════════════
+
+kode, me_spv = panggil("GET", "/auth/me", TOKEN["SUPERVISOR"])
+ID_SPV = me_spv["id"]
+SITE_GUARD = me_guard["homeSite"]["id"]
+
+# — Tugas —
+for peran, harap in [("SUPER_ADMIN", 200), ("ADMIN", 200), ("SUPERVISOR", 200), ("GUARD", 200), ("CLIENT", 200)]:
+    kode, _ = panggil("GET", "/tasks", TOKEN[peran])
+    cek(f"{peran} membaca daftar tugas → {harap}", kode == harap, f"kode {kode}")
+
+kode, tugas_admin = panggil("GET", "/tasks?limit=300", TOKEN["SUPER_ADMIN"])
+kode, tugas_guard = panggil("GET", "/tasks?limit=300", TOKEN["GUARD"])
+cek("Anggota hanya melihat tugas miliknya",
+    isinstance(tugas_guard, list) and len(tugas_guard) < len(tugas_admin),
+    f"{len(tugas_guard)} vs {len(tugas_admin)}")
+cek("Tidak ada tugas milik orang lain di daftar anggota",
+    all(x["assignee"]["id"] == ID_GUARD for x in tugas_guard) if isinstance(tugas_guard, list) else False)
+
+kode, _ = panggil("POST", "/tasks", TOKEN["GUARD"],
+                  {"title": "Percobaan tugas oleh anggota", "assigneeId": ID_GUARD, "siteId": SITE_GUARD})
+cek("GUARD tidak boleh membuat tugas", kode == 403, f"kode {kode}")
+kode, _ = panggil("POST", "/tasks", TOKEN["CLIENT"],
+                  {"title": "Percobaan tugas oleh klien", "assigneeId": ID_GUARD, "siteId": SITE_KLIEN})
+cek("CLIENT tidak boleh membuat tugas", kode == 403, f"kode {kode}")
+
+if tugas_guard:
+    kode, _ = panggil("PUT", f"/tasks/{tugas_guard[0]['id']}", TOKEN["GUARD"], {"priority": "MENDESAK"})
+    cek("GUARD tidak boleh mengubah prioritas tugas", kode == 403, f"kode {kode}")
+    kode, _ = panggil("PUT", f"/tasks/{tugas_guard[0]['id']}", TOKEN["GUARD"], {"status": "DIKERJAKAN"})
+    cek("GUARD boleh mengubah status tugasnya", kode == 200, f"kode {kode}")
+
+kode, tugas_lain = panggil("GET", "/tasks?limit=300", TOKEN["SUPERVISOR"])
+milik_orang_lain = [x for x in tugas_admin if x["assignee"]["id"] != ID_GUARD]
+if milik_orang_lain:
+    kode, _ = panggil("PUT", f"/tasks/{milik_orang_lain[0]['id']}", TOKEN["GUARD"], {"status": "SELESAI"})
+    cek("GUARD tidak boleh menyentuh tugas orang lain", kode == 403, f"kode {kode}")
+
+# — Instruksi —
+kode, _ = panggil("POST", "/tasks/instructions", TOKEN["GUARD"],
+                  {"title": "Instruksi percobaan", "body": "seharusnya ditolak"})
+cek("GUARD tidak boleh menerbitkan instruksi", kode == 403, f"kode {kode}")
+kode, ins_guard = panggil("GET", "/tasks/instructions/list", TOKEN["GUARD"])
+cek("GUARD menerima instruksi untuk regu/site-nya", kode == 200 and isinstance(ins_guard, list), f"kode {kode}")
+if ins_guard:
+    kode, _ = panggil("GET", f"/tasks/instructions/{ins_guard[0]['id']}/reads", TOKEN["GUARD"])
+    cek("GUARD tidak boleh melihat tanda terima baca", kode == 403, f"kode {kode}")
+    kode, _ = panggil("GET", f"/tasks/instructions/{ins_guard[0]['id']}/reads", TOKEN["SUPERVISOR"])
+    cek("SUPERVISOR boleh melihat tanda terima baca", kode == 200, f"kode {kode}")
+
+# — KPI & penilaian —
+for peran, harap in [("SUPER_ADMIN", 200), ("ADMIN", 200), ("SUPERVISOR", 200), ("CLIENT", 200), ("GUARD", 403)]:
+    kode, _ = panggil("GET", "/kpi", TOKEN[peran])
+    cek(f"{peran} peringkat KPI → {harap}", kode == harap, f"kode {kode}")
+
+kode, _ = panggil("GET", f"/kpi/{ID_GUARD}", TOKEN["GUARD"])
+cek("GUARD melihat KPI dirinya sendiri", kode == 200, f"kode {kode}")
+kode, _ = panggil("GET", f"/kpi/{ID_SPV}", TOKEN["GUARD"])
+cek("GUARD tidak boleh melihat KPI orang lain", kode == 403, f"kode {kode}")
+
+nilai = {"guardId": ID_GUARD, "period": "2026-07", "disiplin": 4, "penampilan": 4,
+         "responsif": 4, "kualitasLaporan": 4, "komunikasi": 4, "note": "uji hak akses"}
+kode, _ = panggil("POST", "/kpi/assessments", TOKEN["GUARD"], nilai)
+cek("GUARD tidak boleh menilai personel", kode == 403, f"kode {kode}")
+kode, _ = panggil("POST", "/kpi/assessments", TOKEN["SUPERVISOR"], nilai)
+cek("SUPERVISOR boleh menilai personel", kode in (200, 201), f"kode {kode}")
+
+kode, _ = panggil("PUT", "/kpi/config/bobot", TOKEN["SUPERVISOR"],
+                  {"kehadiran": 25, "patroli": 30, "ronde": 15, "pelaporan": 10, "penilaian": 20})
+cek("SUPERVISOR tidak boleh mengubah bobot KPI", kode == 403, f"kode {kode}")
+kode, _ = panggil("PUT", "/kpi/config/bobot", TOKEN["SUPER_ADMIN"],
+                  {"kehadiran": 25, "patroli": 30, "ronde": 15, "pelaporan": 10, "penilaian": 20})
+cek("SUPER_ADMIN boleh mengubah bobot KPI", kode == 200, f"kode {kode}")
+kode, _ = panggil("PUT", "/kpi/config/bobot", TOKEN["SUPER_ADMIN"],
+                  {"kehadiran": 50, "patroli": 30, "ronde": 15, "pelaporan": 10, "penilaian": 20})
+cek("Bobot KPI wajib berjumlah 100", kode == 400, f"kode {kode}")
+
+# — Lantai, denah, dan regu —
+kode, _ = panggil("POST", "/master/floors", TOKEN["GUARD"], {"siteId": SITE_GUARD, "name": "Lantai uji", "level": 9})
+cek("GUARD tidak boleh membuat lantai", kode == 403, f"kode {kode}")
+kode, _ = panggil("POST", "/master/teams", TOKEN["CLIENT"], {"siteId": SITE_KLIEN, "code": "UJI", "name": "Regu uji"})
+cek("CLIENT tidak boleh membuat regu", kode == 403, f"kode {kode}")
+kode, lantai = panggil("GET", f"/master/floors?siteId={SITE_GUARD}", TOKEN["GUARD"])
+cek("GUARD boleh membaca denah lantai pos jaganya", kode == 200, f"kode {kode}")
+
+# — Cuti, izin, lembur —
+kode, cuti_guard = panggil("GET", "/tasks/leaves/list", TOKEN["GUARD"])
+kode2, cuti_admin = panggil("GET", "/tasks/leaves/list", TOKEN["SUPER_ADMIN"])
+cek("Anggota hanya melihat pengajuannya sendiri",
+    isinstance(cuti_guard, list) and len(cuti_guard) < len(cuti_admin),
+    f"{len(cuti_guard)} vs {len(cuti_admin)}")
+kode, aju = panggil("POST", "/tasks/leaves", TOKEN["GUARD"],
+                    {"type": "IZIN", "startDate": "2026-10-01T00:00:00.000Z",
+                     "endDate": "2026-10-01T00:00:00.000Z", "reason": "Uji hak akses pengajuan"})
+cek("GUARD boleh mengajukan izin", kode == 201, f"kode {kode}")
+aju_id = aju.get("id") if isinstance(aju, dict) else None
+if aju_id:
+    kode, _ = panggil("POST", f"/tasks/leaves/{aju_id}/decide", TOKEN["GUARD"], {"status": "DISETUJUI"})
+    cek("GUARD tidak boleh menyetujui pengajuannya sendiri", kode == 403, f"kode {kode}")
+    kode, _ = panggil("POST", f"/tasks/leaves/{aju_id}/decide", TOKEN["CLIENT"], {"status": "DISETUJUI"})
+    cek("CLIENT tidak boleh memutus pengajuan", kode == 403, f"kode {kode}")
+    kode, _ = panggil("POST", f"/tasks/leaves/{aju_id}/decide", TOKEN["SUPERVISOR"],
+                      {"status": "DITOLAK", "decisionNote": "Uji hak akses"})
+    cek("SUPERVISOR boleh memutus pengajuan", kode == 200, f"kode {kode}")
+
+# — Pendaftaran wajah & percobaan presensi ditolak —
+kode, _ = panggil("POST", f"/users/{ID_SPV}/face", TOKEN["GUARD"], {"photoUrl": "/storage/x.jpg"})
+cek("GUARD tidak boleh mendaftarkan wajah orang lain", kode == 403, f"kode {kode}")
+kode, _ = panggil("DELETE", f"/users/{ID_GUARD}/face", TOKEN["SUPERVISOR"])
+cek("SUPERVISOR tidak boleh menghapus template wajah", kode == 403, f"kode {kode}")
+for peran, harap in [("GUARD", 403), ("SUPERVISOR", 200), ("ADMIN", 200)]:
+    kode, _ = panggil("GET", "/schedules/attendance/attempts?limit=5", TOKEN[peran])
+    cek(f"{peran} percobaan presensi ditolak → {harap}", kode == harap, f"kode {kode}")
+
 # Bersihkan klien uji
 for cid in dibuat_klien:
     panggil("DELETE", f"/master/clients/{cid}", TOKEN["SUPER_ADMIN"])

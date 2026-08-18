@@ -37,6 +37,18 @@ export async function notifyCommand(
   emitOps(WS_EVENTS.NOTIFICATION, n, siteId ?? undefined);
 }
 
+/** Perwakilan klien pemilik site — dipakai untuk sinyal darurat & insiden. */
+export async function klienDariSite(siteId: string | null | undefined): Promise<string[]> {
+  if (!siteId) return [];
+  const site = await prisma.site.findUnique({ where: { id: siteId }, select: { clientId: true } });
+  if (!site) return [];
+  const users = await prisma.user.findMany({
+    where: { role: 'CLIENT', clientId: site.clientId, status: 'ACTIVE' },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
 export async function audit(
   userId: string | null,
   action: string,

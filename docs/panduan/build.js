@@ -440,6 +440,145 @@ part('Bagian A · Aplikasi Web', 'Konfigurasi: Klien, Site, Titik & Rute', () =>
   return s.join('\n');
 });
 
+part('Bagian A · Aplikasi Web', 'Tugas Insidental dan Instruksi', () => {
+  const s = [];
+  s.push(p('Selain patroli terjadwal, komandan regu kerap memberi pekerjaan tambahan: mengawal setoran, mendampingi tamu audit, memeriksa APAR. Halaman <strong>Tugas &amp; Instruksi</strong> mencatat pekerjaan seperti itu agar tidak lagi disampaikan lewat pesan singkat yang mudah hilang.'));
+  s.push(img('web-tugas', 'Halaman Tugas &amp; Instruksi dengan dua tab: penugasan perorangan dan instruksi massal.'));
+  s.push(sub('Menerbitkan tugas'));
+  s.push(steps([
+    'Tekan <strong>Tugas Baru</strong>.',
+    'Pilih site dan petugas pelaksana.',
+    'Tulis judul pekerjaan dan uraian yang cukup jelas untuk dikerjakan tanpa bertanya lagi.',
+    'Pilih prioritas dan tenggat penyelesaian.',
+    'Tekan <strong>Kirim Tugas</strong> lalu setujui konfirmasi. Petugas menerima notifikasi seketika.',
+  ]));
+  s.push(table(
+    ['Prioritas', 'Makna operasional'],
+    [
+      ['<span class="pill merah">Mendesak</span>', 'Ditinggalkan pekerjaan lain; dikerjakan lebih dulu'],
+      ['<span class="pill kuning">Tinggi</span>', 'Diselesaikan pada shift yang sama'],
+      ['<span class="pill biru">Normal</span>', 'Diselesaikan sebelum tenggat'],
+      ['<span class="pill">Rendah</span>', 'Dikerjakan bila pekerjaan utama sudah tuntas'],
+    ]
+  ));
+  s.push(sub('Memantau penyelesaian'));
+  s.push(p('Status tugas berjalan dari <em>Baru</em> → <em>Dikerjakan</em> → <em>Selesai</em>. Petugas yang menuntaskan tugas wajib menuliskan catatan hasil dan boleh melampirkan foto bukti; keduanya tampil pada kartu tugas. Tugas yang melewati tenggat diberi tanda <strong>Lewat tenggat</strong> berwarna merah.'));
+  s.push(note('Keterangan', 'Anggota hanya melihat tugas yang ditujukan kepadanya, dan hanya boleh mengubah status serta catatan hasil. Prioritas dan tenggat tetap menjadi kewenangan pengawas.'));
+  s.push(sub('Instruksi dan tanda terima baca'));
+  s.push(p('Tab <strong>Instruksi</strong> dipakai untuk arahan yang berlaku bagi banyak orang: perubahan prosedur, kewaspadaan khusus, atau pengumuman operasional. Instruksi dapat ditujukan kepada satu regu, satu site, atau seluruh satuan.'));
+  s.push(steps([
+    'Tekan <strong>Instruksi Baru</strong>.',
+    'Pilih sasaran: regu tertentu, site tertentu, atau kosongkan keduanya untuk seluruh satuan.',
+    'Tulis judul dan isi arahan.',
+    'Centang <strong>Mendesak</strong> bila perlu dibaca segera — instruksi ditandai merah di aplikasi lapangan.',
+    'Tekan <strong>Kirim</strong> lalu setujui konfirmasi.',
+  ]));
+  s.push(p('Tekan <strong>Siapa sudah membaca</strong> pada sebuah instruksi untuk melihat daftar anggota beserta waktu bacanya. Inilah bukti bahwa arahan benar-benar sampai, bukan sekadar terkirim.'));
+  s.push(tip('Kiat', 'Untuk arahan yang menuntut tindakan perorangan, terbitkan tugas — bukan instruksi. Tugas punya penanggung jawab, tenggat, dan bukti penyelesaian; instruksi hanya punya tanda terima baca.'));
+  return s.join('\n');
+});
+
+part('Bagian A · Aplikasi Web', 'Penilaian Kinerja (KPI)', () => {
+  const s = [];
+  s.push(p('Halaman <strong>Penilaian Kinerja</strong> mengubah catatan harian sistem menjadi satu angka 0–100 per personel, sehingga pembinaan dan penilaian anggota terbaik tidak lagi bertumpu pada kesan.'));
+  s.push(img('web-kpi', 'Peringkat KPI beserta rincian lima komponen tiap personel.'));
+  s.push(sub('Lima komponen dan bobotnya'));
+  s.push(table(
+    ['Komponen', 'Bobot bawaan', 'Dihitung dari'],
+    [
+      ['Kehadiran &amp; ketepatan', '25%', 'Presensi tepat waktu dibagi seluruh percobaan presensi, termasuk yang ditolak sistem'],
+      ['Penyelesaian patroli', '30%', 'Rata-rata kepatuhan seluruh sesi patroli pada periode itu'],
+      ['Ronde tuntas 100%', '15%', 'Jumlah sesi yang seluruh titiknya terpindai, dibagi jumlah sesi'],
+      ['Aktivitas pelaporan', '10%', 'Jumlah laporan insiden; empat laporan sebulan dinilai penuh'],
+      ['Penilaian Danru &amp; Klien', '20%', 'Rata-rata penilaian manual lima aspek pada periode itu'],
+    ]
+  ));
+  s.push(p('Nilai akhir diterjemahkan menjadi predikat: <strong>A</strong> mulai 90, <strong>B</strong> mulai 80, <strong>C</strong> mulai 70, <strong>D</strong> mulai 60, dan <strong>E</strong> di bawah 60.'));
+  s.push(sub('Memberi penilaian manual'));
+  s.push(steps([
+    'Tekan tombol <strong>Nilai</strong> pada baris personel yang bersangkutan.',
+    'Beri angka 1 sampai 5 pada lima aspek: disiplin, penampilan, responsif, kualitas laporan, dan komunikasi.',
+    'Tulis catatan pembinaan bila ada.',
+    'Tekan <strong>Simpan Penilaian</strong> lalu setujui konfirmasi. Nilai KPI langsung dihitung ulang.',
+  ]));
+  s.push(img('web-form-nilai', 'Formulir penilaian manual lima aspek untuk satu periode.'));
+  s.push(note('Keterangan', 'Satu penilai hanya boleh memberi satu penilaian per personel per periode; penilaian berikutnya menimpa yang lama. Komandan regu dan akun klien sama-sama dapat menilai, dan sistem mencatat siapa penilainya.'));
+  s.push(sub('Mengubah bobot'));
+  s.push(p('Bobot kelima komponen dapat disesuaikan dengan kesepakatan manajemen atau kontrak klien. Tekan <strong>Atur Bobot</strong> di kanan atas, ubah angkanya, lalu simpan. Jumlah seluruh bobot wajib tepat 100 — sistem menolak menyimpan bila tidak.'));
+  s.push(p('Tekan <strong>Rincian</strong> pada seorang personel untuk membuka tren enam bulan terakhir beserta dasar perhitungannya: berapa kali presensi tepat waktu, berapa presensi ditolak, berapa sesi patroli, berapa ronde tuntas, dan berapa laporan yang dibuat.'));
+  s.push(tip('Kiat', 'Nilai yang turun tajam pada satu komponen lebih berguna untuk pembinaan daripada nilai akhirnya. Komponen kehadiran yang jatuh biasanya berarti masalah jadwal atau jarak tempuh, bukan kemalasan.'));
+  return s.join('\n');
+});
+
+part('Bagian A · Aplikasi Web', 'Lantai, Denah, dan Regu', () => {
+  const s = [];
+  s.push(p('Untuk objek bertingkat — gedung perkantoran, pusat belanja, apartemen — titik patroli perlu diletakkan di lantai yang benar. Halaman <strong>Lantai &amp; Regu</strong> menampung denah tiap lantai dan posisi titik di atasnya.'));
+  s.push(img('web-lantai', 'Daftar lantai, denah terunggah, dan penempatan titik di atas denah.'));
+  s.push(sub('Menyiapkan denah'));
+  s.push(steps([
+    'Pilih site di bagian atas halaman.',
+    'Tekan <strong>Tambah Lantai</strong>, isi nama dan nomor lantai, lalu simpan.',
+    'Tekan <strong>Unggah Denah</strong> pada lantai tersebut dan pilih berkas gambar denahnya.',
+    'Klik satu titik patroli di daftar sebelah kanan, lalu klik posisinya di atas denah. Penanda langsung menempel di titik itu.',
+    'Ulangi untuk seluruh titik pada lantai tersebut.',
+  ]));
+  s.push(p('Setelah denah terisi, laporan sinyal darurat dan temuan patroli ikut menyebutkan lantainya — bukan hanya nama gedung. Ini memangkas waktu pencarian saat keadaan darurat.'));
+  s.push(sub('Regu jaga'));
+  s.push(p('Tab <strong>Regu</strong> mengelompokkan anggota ke dalam regu A, B, C, dan seterusnya beserta komandan regunya. Pengelompokan ini dipakai untuk menujukan instruksi ke satu regu saja, dan memudahkan penyusunan roster.'));
+  s.push(steps([
+    'Buka tab <strong>Regu</strong> lalu tekan <strong>Tambah Regu</strong>.',
+    'Isi kode dan nama regu, pilih site, lalu pilih komandan regunya.',
+    'Centang anggota yang masuk regu tersebut.',
+    'Simpan lalu setujui konfirmasi.',
+  ]));
+  s.push(note('Keterangan', 'Satu anggota hanya berada pada satu regu. Memindahkan anggota ke regu lain otomatis mengeluarkannya dari regu sebelumnya.'));
+  return s.join('\n');
+});
+
+part('Bagian A · Aplikasi Web', 'Cuti, Izin, dan Lembur', () => {
+  const s = [];
+  s.push(p('Pengajuan cuti, izin, dan lembur diajukan dari aplikasi lapangan dan diputuskan di halaman ini, sehingga tidak ada lagi izin lisan yang tidak tercatat.'));
+  s.push(img('web-cuti', 'Daftar pengajuan beserta status dan tombol keputusan.'));
+  s.push(steps([
+    'Baca pengajuan yang berstatus <strong>Menunggu</strong>.',
+    'Periksa tanggal, alasan, dan jadwal jaga yang terdampak.',
+    'Tekan <strong>Setujui</strong> atau <strong>Tolak</strong>.',
+    'Tulis catatan keputusan — terutama bila menolak — lalu setujui konfirmasi.',
+  ]));
+  s.push(p('Pemohon langsung menerima notifikasi beserta catatan keputusan Anda. Riwayat pengajuan tersimpan permanen sebagai lampiran administrasi kepegawaian.'));
+  s.push(note('Keterangan', 'Anggota hanya melihat pengajuannya sendiri dan tidak dapat memutus pengajuan siapa pun, termasuk miliknya. Akun klien tidak berwenang memutus pengajuan.'));
+  return s.join('\n');
+});
+
+part('Bagian A · Aplikasi Web', 'Verifikasi Wajah pada Presensi', () => {
+  const s = [];
+  s.push(p('Titipan absen dicegah dengan mencocokkan swafoto presensi terhadap foto wajah yang sudah didaftarkan. Pencocokan berjalan di server sendiri — foto tidak dikirim ke layanan pihak ketiga mana pun.'));
+  s.push(sub('Mendaftarkan wajah'));
+  s.push(steps([
+    'Buka halaman <strong>Personel</strong>.',
+    'Tekan ikon wajah pada baris personel yang bersangkutan.',
+    'Unggah satu foto menghadap kamera dengan pencahayaan cukup.',
+    'Tekan <strong>Daftarkan Wajah</strong> lalu setujui konfirmasi.',
+  ]));
+  s.push(img('web-daftar-wajah', 'Formulir pendaftaran wajah pada data personel.'));
+  s.push(p('Kolom <strong>Wajah</strong> pada daftar personel menunjukkan siapa yang sudah terdaftar. Sejak saat itu, presensi masuk yang bersangkutan hanya diterima bila swafotonya cocok.'));
+  s.push(sub('Percobaan presensi yang ditolak'));
+  s.push(p('Setiap penolakan presensi disimpan lengkap dengan sebab, jarak dari pos, angka kemiripan wajah, dan fotonya. Buka halaman <strong>Presensi</strong> lalu pilih tab <strong>Percobaan Ditolak</strong>.'));
+  s.push(img('web-presensi-ditolak', 'Rekaman percobaan presensi yang ditolak beserta buktinya.'));
+  s.push(table(
+    ['Sebab penolakan', 'Arti'],
+    [
+      ['Di luar radius', 'Koordinat pemohon melampaui radius site'],
+      ['Wajah tidak cocok', 'Kemiripan di bawah ambang; besar kemungkinan bukan orang yang bersangkutan'],
+      ['Wajah tak terdeteksi', 'Foto buram, gelap, tertutup, atau tidak menghadap kamera'],
+      ['Sudah presensi', 'Masih ada presensi masuk yang belum ditutup'],
+    ]
+  ));
+  s.push(warn('Perhatian', 'Kemiripan wajah bukan bukti tunggal. Bila seorang anggota berulang kali ditolak padahal benar-benar hadir, periksa fotonya di kolom bukti dan daftarkan ulang wajahnya dengan foto yang lebih baik.'));
+  s.push(note('Keterangan', 'Hanya administrator yang boleh menghapus atau mengganti template wajah. Rekaman percobaan yang ditolak tidak dapat dihapus dari antarmuka mana pun.'));
+  return s.join('\n');
+});
+
 part('Bagian A · Aplikasi Web', 'Pengumuman, Laporan, dan Jejak Audit', () => {
   const s = [];
   s.push(sub('Pengumuman'));
@@ -530,7 +669,7 @@ part('Bagian B · Aplikasi Lapangan', 'Beranda', () => {
       ['Kepala layar', 'Sapaan, nama Anda, dan lencana status: <strong>Bertugas</strong> (hijau) atau <strong>Luar Dinas</strong> (abu-abu).'],
       ['Tiga petak', 'Jumlah jadwal hari ini, titik yang sudah dipindai pada patroli berjalan, dan jam sekarang.'],
       ['Kartu presensi', 'Tombol presensi masuk atau pulang beserta keterangan shift Anda.'],
-      ['Kisi pintasan', 'Delapan layanan: Buku Tamu, Kendaraan, Serah Terima, Jadwal Saya, Lapor Insiden, Pengumuman, Riwayat Patroli, dan Semua Layanan.'],
+      ['Kisi pintasan', 'Dua belas layanan: Buku Tamu, Kendaraan, Serah Terima, Jadwal Saya, Lapor Insiden, Pengumuman, Riwayat Patroli, Tugas Saya, Instruksi, Nilai Kinerja, Cuti &amp; Lembur, dan Semua Layanan.'],
       ['Jadwal jaga', 'Shift Anda hari ini beserta rutenya.'],
       ['Pengumuman', 'Geser ke samping untuk membaca pengumuman terbaru.'],
       ['Tombol darurat', 'Kartu merah di bagian bawah.'],
@@ -554,8 +693,9 @@ part('Bagian B · Aplikasi Lapangan', 'Presensi Masuk dan Pulang', () => {
     'Kamera depan terbuka untuk swafoto. Ambil foto lalu setujui.',
     'Tunggu sampai muncul pesan “Presensi masuk berhasil dicatat”.',
   ]));
+  s.push(warn('Bila wajah Anda sudah didaftarkan', 'Swafoto menjadi <strong>syarat mutlak</strong>: presensi tidak dapat dilanjutkan tanpa foto, dan foto itu dicocokkan dengan wajah Anda yang terdaftar. Ambil foto menghadap kamera, di tempat yang cukup terang, tanpa masker atau helm.'));
   s.push(hp('hp-dialog-presensi', 'Dialog konfirmasi presensi masuk.'));
-  s.push(warn('Presensi ditolak?', 'Bila muncul pesan “Anda berada … m dari pos (batas … m)”, artinya posisi Anda di luar radius site. Mendekatlah ke pos jaga, tunggu GPS mengunci di ruang terbuka, lalu ulangi. Jangan meminta orang lain melakukan presensi untuk Anda — koordinat dan foto tercatat.'));
+  s.push(warn('Presensi ditolak?', 'Bila muncul pesan “Anda berada … m dari pos (batas … m)”, artinya posisi Anda di luar radius site. Mendekatlah ke pos jaga, tunggu GPS mengunci di ruang terbuka, lalu ulangi. Bila muncul “wajah tidak cocok” atau “wajah tidak terdeteksi”, ulangi swafoto di tempat yang lebih terang. Jangan meminta orang lain melakukan presensi untuk Anda — setiap percobaan tersimpan lengkap dengan koordinat dan fotonya.'));
   s.push(sub('Presensi pulang'));
   s.push(steps([
     'Pastikan tidak ada patroli yang masih berjalan dan serah terima sudah dibuat.',
@@ -587,11 +727,19 @@ part('Bagian B · Aplikasi Lapangan', 'Menjalankan Patroli', () => {
   s.push(steps([
     'Ketuk ikon <strong>⋯</strong> pada baris titik tersebut.',
     'Tulis catatan kondisi titik bila perlu.',
-    'Aktifkan sakelar <strong>Ada temuan di titik ini</strong> bila menemukan masalah — supervisor langsung menerima notifikasi.',
+    'Pilih kondisi titik: <strong>Aman</strong>, <strong>Perlu perhatian</strong>, atau <strong>Bermasalah</strong>.',
     'Ambil foto bukti bila rute mewajibkannya.',
     'Ketuk <strong>VERIFIKASI LEWAT GPS</strong> lalu setujui konfirmasi.',
   ]));
-  s.push(warn('Perhatian', 'Verifikasi GPS hanya diterima bila Anda benar-benar berada dalam radius titik. Bila muncul pesan jarak terlalu jauh, mendekatlah ke titik lalu ulangi.'));
+  s.push(table(
+    ['Kondisi', 'Kapan dipilih', 'Akibatnya'],
+    [
+      ['<span class="pill hijau">Aman</span>', 'Tidak ada yang perlu ditindaklanjuti', 'Titik dicatat terperiksa, tanpa notifikasi'],
+      ['<span class="pill kuning">Perlu perhatian</span>', 'Ada yang mulai tidak beres: lampu redup, gembok longgar, sampah menumpuk', 'Pusat kendali menerima pemberitahuan untuk dijadwalkan perbaikannya'],
+      ['<span class="pill merah">Bermasalah</span>', 'Kerusakan atau pelanggaran yang berdampak langsung pada keamanan', 'Pusat kendali menerima pemberitahuan segera; sesi ditandai bertemuan'],
+    ]
+  ));
+  s.push(warn('Perhatian', 'Verifikasi GPS hanya diterima bila Anda benar-benar berada dalam radius titik. Bila muncul pesan jarak terlalu jauh, mendekatlah ke titik lalu ulangi. Bila jarak Anda jauh melampaui radius yang wajar, sesi ditandai <em>jarak tidak wajar</em> dan ditinjau pengawas.'));
   s.push(sub('Mengakhiri putaran'));
   s.push(steps([
     'Ketuk tombol <strong>AKHIRI</strong> di kanan atas, sebaris dengan angka kemajuan titik.',
@@ -647,6 +795,46 @@ part('Bagian B · Aplikasi Lapangan', 'Insiden, Darurat, dan Pos Jaga', () => {
 });
 
 /* ═══════════════ C — ALUR HARIAN ═══════════════ */
+part('Bagian B · Aplikasi Lapangan', 'Tugas, Instruksi, Nilai, dan Pengajuan', () => {
+  const s = [];
+  s.push(p('Empat pintasan pada beranda menghubungkan Anda dengan pekerjaan tambahan, arahan komandan, nilai kinerja pribadi, dan pengajuan kepegawaian. Semuanya juga tersedia lewat pintasan <strong>Semua Layanan</strong> pada kisi yang sama.'));
+  s.push(hp('hp-pintasan', 'Kisi pintasan beranda: Tugas Saya, Instruksi, Nilai Kinerja, dan Cuti &amp; Lembur.'));
+  s.push(sub('Tugas Saya'));
+  s.push(steps([
+    'Ketuk pintasan <strong>Tugas Saya</strong>.',
+    'Baca kartu tugas: prioritas, tenggat, dan uraian pekerjaannya.',
+    'Ketuk <strong>MULAI</strong> saat Anda benar-benar mengerjakannya — waktu mulai tercatat.',
+    'Setelah tuntas, ketuk <strong>SELESAIKAN</strong>.',
+    'Tulis catatan hasil, lampirkan foto bukti bila ada, lalu ketuk <strong>TANDAI SELESAI</strong> dan setujui konfirmasi.',
+  ]));
+  s.push(hp('hp-tugas', 'Daftar tugas beserta prioritas dan tenggatnya.'));
+  s.push(note('Keterangan', 'Anda hanya menerima tugas yang ditujukan kepada Anda. Prioritas dan tenggat tidak dapat diubah dari aplikasi lapangan — bila keberatan, sampaikan kepada komandan regu.'));
+  s.push(sub('Instruksi'));
+  s.push(steps([
+    'Ketuk pintasan <strong>Instruksi</strong> atau buka tab kedua pada layar Tugas.',
+    'Instruksi bertanda merah <strong>Mendesak</strong> dibaca lebih dulu.',
+    'Setelah membaca, ketuk <strong>Tandai dibaca</strong>. Komandan dapat melihat siapa saja yang sudah membaca.',
+  ]));
+  s.push(warn('Perhatian', 'Menandai dibaca berarti Anda menyatakan sudah memahami isinya. Bila ada yang tidak jelas, tanyakan lebih dulu kepada komandan regu sebelum menandainya.'));
+  s.push(sub('Nilai Kinerja'));
+  s.push(p('Pintasan <strong>Nilai Kinerja</strong> menampilkan nilai KPI Anda pada periode berjalan, predikatnya, peringkat Anda di antara seluruh personel, rincian lima komponen, tren enam bulan, dan dasar perhitungannya.'));
+  s.push(hp('hp-kpi', 'Nilai kinerja pribadi beserta rincian komponen dan tren enam bulan.'));
+  s.push(tip('Kiat', 'Komponen dengan bilah paling pendek adalah yang paling cepat memperbaiki nilai Anda. Ronde tuntas 100% biasanya paling mudah diperbaiki: selesaikan seluruh titik sebelum mengakhiri patroli.'));
+  s.push(sub('Cuti, Izin, dan Lembur'));
+  s.push(steps([
+    'Ketuk pintasan <strong>Cuti &amp; Lembur</strong>.',
+    'Ketuk <strong>AJUKAN</strong>.',
+    'Pilih jenis pengajuan: cuti, izin, atau lembur.',
+    'Pilih rentang tanggal — untuk lembur, isi jumlah jamnya.',
+    'Tulis alasan secara ringkas namun jelas.',
+    'Ketuk <strong>KIRIM PENGAJUAN</strong> lalu setujui konfirmasi.',
+  ]));
+  s.push(hp('hp-cuti', 'Riwayat pengajuan beserta statusnya.'));
+  s.push(p('Status pengajuan berubah dari <strong>Menunggu</strong> menjadi <strong>Disetujui</strong> atau <strong>Ditolak</strong>, disertai catatan dari pengawas. Anda menerima notifikasi begitu keputusan dibuat.'));
+  s.push(note('Keterangan', 'Pengajuan tidak dapat diubah setelah terkirim. Bila keliru, ajukan ulang dan sampaikan kepada pengawas agar pengajuan yang salah ditolak.'));
+  return s.join('\n');
+});
+
 part('Bagian C', 'Alur Kerja Harian', () => {
   const s = [];
   s.push(sub('Anggota security'));

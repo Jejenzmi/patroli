@@ -27,6 +27,10 @@ import Announcements from './pages/Announcements';
 import Reports from './pages/Reports';
 import AuditTrail from './pages/AuditTrail';
 import Profile from './pages/Profile';
+import Tasks from './pages/Tasks';
+import Kpi from './pages/Kpi';
+import Floors from './pages/Floors';
+import Leaves from './pages/Leaves';
 
 function Guard({ children }: { children: JSX.Element }) {
   const { me, ready } = useAuth();
@@ -64,6 +68,10 @@ export default function App() {
         <Route path="/personel" element={<Guards />} />
         <Route path="/personel/:id" element={<GuardDetail />} />
         <Route path="/serah-terima" element={<Handovers />} />
+        <Route path="/tugas" element={<Tasks />} />
+        <Route path="/kpi" element={<Kpi />} />
+        <Route path="/lantai" element={<Floors />} />
+        <Route path="/cuti" element={<Leaves />} />
         <Route path="/tamu" element={<Visitors />} />
         <Route path="/kendaraan" element={<Vehicles />} />
         <Route path="/inventaris" element={<Equipment />} />

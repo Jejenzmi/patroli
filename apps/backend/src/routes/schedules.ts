@@ -7,6 +7,7 @@ import { haversineMeters, WS_EVENTS } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyUsers } from '../lib/notify';
 import { withSiteScope, bolehSite } from '../lib/scope';
+import { cocokkanWajah, wajahAktif } from '../lib/face';
 
 const router = Router();
 router.use(auth);
@@ -151,16 +152,48 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
     return res.status(403).json({ message: 'Anda tidak ditempatkan pada site ini' });
 
   const distance = Math.round(haversineMeters(lat, lng, site.lat, site.lng));
-  if (distance > site.radiusM)
-    return res.status(422).json({
-      message: `Anda berada ${distance} m dari pos (batas ${site.radiusM} m). Presensi harus dilakukan di area site.`,
-      distanceM: distance,
+
+  // FR-ATT-006 / BRULE-004: setiap penolakan disimpan sebagai bukti.
+  const catatGagal = (result: any, reason: string, faceScore?: number | null) =>
+    prisma.attendanceAttempt.create({
+      data: {
+        guardId,
+        siteId,
+        result,
+        reason,
+        lat,
+        lng,
+        distanceM: distance,
+        faceScore: faceScore ?? null,
+        photoUrl: photoUrl || null,
+      },
     });
+
+  if (distance > site.radiusM) {
+    const pesan = `Anda berada ${distance} m dari pos (batas ${site.radiusM} m). Presensi harus dilakukan di area site.`;
+    await catatGagal('DILUAR_RADIUS', pesan);
+    return res.status(422).json({ message: pesan, distanceM: distance });
+  }
+
+  // FR-ATT-005 / BRULE-003: wajah dicocokkan dengan template terdaftar.
+  let faceScore: number | null = null;
+  if (await wajahAktif(guardId)) {
+    const hasil = await cocokkanWajah(guardId, photoUrl || null);
+    faceScore = hasil.score;
+    if (!hasil.ok) {
+      await catatGagal(hasil.result, hasil.message, hasil.score);
+      return res.status(422).json({ message: hasil.message, faceScore: hasil.score });
+    }
+  }
 
   const existing = await prisma.attendance.findFirst({
     where: { guardId, checkOutAt: null, checkInAt: { gte: startOfDay(new Date()) } },
   });
-  if (existing) return res.status(409).json({ message: 'Anda masih dalam status masuk. Lakukan presensi pulang dulu.' });
+  if (existing) {
+    const pesan = 'Anda masih dalam status masuk. Lakukan presensi pulang dulu.';
+    await catatGagal('SUDAH_MASUK', pesan, faceScore);
+    return res.status(409).json({ message: pesan });
+  }
 
   let status: 'ON_TIME' | 'LATE' = 'ON_TIME';
   let lateMinutes = 0;
@@ -187,6 +220,7 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
       checkInLng: lng,
       checkInPhoto: photoUrl || null,
       checkInDistanceM: distance,
+      faceScore,
       status,
       lateMinutes,
       notes: notes || null,
@@ -267,6 +301,24 @@ router.get('/attendance', async (req, res) => {
       guard: { select: { id: true, name: true, employeeId: true, avatarUrl: true } },
       site: { select: { id: true, name: true } },
       schedule: { include: { shift: true } },
+    },
+  });
+  res.json(rows);
+});
+
+/** Percobaan presensi yang ditolak — bukti monitoring (FR-ATT-006). */
+router.get('/attendance/attempts', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+  let where: any = {};
+  if (req.query.siteId) where.siteId = String(req.query.siteId);
+  if (req.query.guardId) where.guardId = String(req.query.guardId);
+  where = await withSiteScope(req, where);
+  const rows = await prisma.attendanceAttempt.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(300, Number(req.query.limit) || 100),
+    include: {
+      guard: { select: { id: true, name: true, employeeId: true, avatarUrl: true } },
+      site: { select: { id: true, name: true } },
     },
   });
   res.json(rows);

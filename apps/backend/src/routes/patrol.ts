@@ -33,6 +33,23 @@ router.post('/start', allow(...COMMAND, 'GUARD'), async (req, res) => {
   if (!route.checkpoints.length)
     return res.status(400).json({ message: 'Rute belum memiliki titik patroli' });
 
+  // BRULE-001 / FR-PAT-003: patroli hanya boleh dimulai setelah presensi masuk.
+  if (req.user!.role === 'GUARD') {
+    const hadir = await prisma.attendance.findFirst({
+      where: { guardId: req.user!.sub, checkOutAt: null },
+      orderBy: { checkInAt: 'desc' },
+      select: { id: true, siteId: true },
+    });
+    if (!hadir)
+      return res.status(422).json({
+        message: 'Lakukan presensi masuk terlebih dahulu sebelum memulai patroli.',
+      });
+    if (hadir.siteId !== route.siteId)
+      return res.status(422).json({
+        message: 'Rute ini berada di site lain, tidak sesuai presensi masuk Anda.',
+      });
+  }
+
   const running = await prisma.patrolSession.findFirst({
     where: { guardId: req.user!.sub, status: 'IN_PROGRESS' },
   });
@@ -68,7 +85,7 @@ const scanSchema = z.object({
   lng: z.number().optional(),
   photoUrl: z.string().optional().nullable(),
   note: z.string().optional().nullable(),
-  condition: z.enum(['NORMAL', 'ISSUE']).default('NORMAL'),
+  condition: z.enum(['AMAN', 'PERLU_PERHATIAN', 'BERMASALAH']).default('AMAN'),
 });
 
 router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
@@ -129,6 +146,10 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       });
   }
 
+  // FR-PAT-010: jarak jauh di luar toleransi ditandai untuk ditinjau, walau
+  // pemindaian lewat QR tetap diterima agar patroli tidak terhenti.
+  const distanceFlag = distanceM != null && distanceM > link.checkpoint.radiusM * 3;
+
   const elapsedMin = Math.round((Date.now() - session.startedAt.getTime()) / 60000);
   const isLate = elapsedMin > link.targetMinute + session.route.graceMin;
 
@@ -144,6 +165,7 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       note: p.data.note || null,
       condition: p.data.condition,
       isLate,
+      distanceFlag,
       orderIndex: link.orderIndex,
     },
     include: { checkpoint: true },
@@ -151,7 +173,7 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
   const scannedCount = await prisma.patrolScan.count({ where: { sessionId: session.id } });
   const issueCount = await prisma.patrolScan.count({
-    where: { sessionId: session.id, condition: 'ISSUE' },
+    where: { sessionId: session.id, condition: { in: ['PERLU_PERHATIAN', 'BERMASALAH'] } },
   });
   await prisma.patrolSession.update({
     where: { id: session.id },
@@ -164,11 +186,11 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
   emitOps(WS_EVENTS.SCAN, { sessionId: session.id, scan, scannedCount, total: session.totalCheckpoints }, session.siteId);
 
-  if (p.data.condition === 'ISSUE') {
+  if (p.data.condition !== 'AMAN') {
     await notifyCommand(
       {
         type: 'CHECKPOINT_ISSUE',
-        title: 'Temuan di titik patroli',
+        title: p.data.condition === 'BERMASALAH' ? 'Titik bermasalah' : 'Titik perlu perhatian',
         body: `${link.checkpoint.name}: ${p.data.note || 'ada temuan'}`,
         data: { sessionId: session.id, checkpointId: link.checkpointId },
       },

@@ -67,9 +67,11 @@ export default function PatrolDetail() {
                   <span
                     className={`relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-lg border ${
                       ok
-                        ? scan.condition === 'ISSUE'
-                          ? 'border-amber/50 bg-amber/15 text-amber'
-                          : 'border-emerald/45 bg-emerald/15 text-emerald'
+                        ? scan.condition === 'BERMASALAH'
+                          ? 'border-danger/50 bg-danger/15 text-danger'
+                          : scan.condition === 'PERLU_PERHATIAN'
+                            ? 'border-amber/50 bg-amber/15 text-amber'
+                            : 'border-emerald/45 bg-emerald/15 text-emerald'
                         : 'border-danger/40 bg-danger/10 text-danger'
                     }`}
                   >
@@ -80,7 +82,9 @@ export default function PatrolDetail() {
                       <p className="text-[13px] font-bold">{rc.checkpoint.name}</p>
                       <span className="num text-[10px] text-muted">#{rc.orderIndex}</span>
                       {scan?.isLate && <Chip value="LATE" />}
-                      {scan?.condition === 'ISSUE' && <Chip value="HIGH" tone="severity">Temuan</Chip>}
+                      {scan?.condition === 'BERMASALAH' && <Chip value="CRITICAL" tone="severity">Bermasalah</Chip>}
+                      {scan?.condition === 'PERLU_PERHATIAN' && <Chip value="MEDIUM" tone="severity">Perlu perhatian</Chip>}
+                      {scan?.distanceFlag && <Chip value="HIGH" tone="severity">Jarak tidak wajar</Chip>}
                     </div>
                     <p className="num text-[11px] text-muted">
                       {rc.checkpoint.code} · target menit ke-{rc.targetMinute}

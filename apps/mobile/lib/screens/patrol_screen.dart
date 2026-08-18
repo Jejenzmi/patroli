@@ -422,8 +422,15 @@ class _CheckpointTile extends StatelessWidget {
   /// Alternatif bila stiker QR rusak: verifikasi lewat GPS, sekaligus lapor temuan.
   void _manualSheet(BuildContext context) {
     final note = TextEditingController();
-    bool issue = false;
+    // BRULE-002: kondisi titik dilaporkan dalam tiga tingkat, bukan sekadar ada/tidak.
+    String kondisi = 'AMAN';
     String? photoUrl;
+
+    const pilihanKondisi = [
+      ('AMAN', 'Aman', Icons.verified_outlined, P.emerald),
+      ('PERLU_PERHATIAN', 'Perlu perhatian', Icons.error_outline, P.amber),
+      ('BERMASALAH', 'Bermasalah', Icons.report_gmailerrorred_outlined, P.danger),
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -457,17 +464,55 @@ class _CheckpointTile extends StatelessWidget {
                   hintText: 'Catatan kondisi titik (opsional)…',
                 ),
               ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: issue,
-                activeColor: P.amber,
-                onChanged: (v) => setSheet(() => issue = v),
-                title: const Text('Ada temuan di titik ini', style: TextStyle(fontSize: 14)),
-                subtitle: const Text('Supervisor akan menerima notifikasi',
-                    style: TextStyle(color: P.muted, fontSize: 11)),
+              const SizedBox(height: 16),
+              const Kicker('Kondisi Titik'),
+              const SizedBox(height: 8),
+              Row(
+                children: pilihanKondisi.map((k) {
+                  final aktif = kondisi == k.$1;
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setSheet(() => kondisi = k.$1),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: aktif ? k.$4.withOpacity(.15) : P.abyss,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: aktif ? k.$4.withOpacity(.55) : P.line),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(k.$3, size: 18, color: aktif ? k.$4 : P.muted),
+                              const SizedBox(height: 6),
+                              Text(
+                                k.$2,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w800,
+                                  color: aktif ? k.$4 : P.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
+              Text(
+                kondisi == 'AMAN'
+                    ? 'Tidak ada yang perlu ditindaklanjuti di titik ini.'
+                    : 'Pusat kendali menerima pemberitahuan langsung atas kondisi ini.',
+                style: const TextStyle(color: P.muted, fontSize: 11, height: 1.4),
+              ),
+              const SizedBox(height: 14),
               OutlinedButton.icon(
                 onPressed: () async {
                   final shot = await ImagePicker().pickImage(
@@ -522,15 +567,16 @@ class _CheckpointTile extends StatelessWidget {
                       }
                       return;
                     }
+                    final adaTemuan = kondisi != 'AMAN';
                     final setuju = await askConfirm(
                       sheetCtx,
-                      title: issue ? 'Kirim temuan di titik ini?' : 'Verifikasi titik lewat GPS?',
-                      message: issue
+                      title: adaTemuan ? 'Kirim temuan di titik ini?' : 'Verifikasi titik lewat GPS?',
+                      message: adaTemuan
                           ? 'Temuan akan diteruskan ke supervisor sebagai pemberitahuan langsung.'
                           : 'Titik ditandai terperiksa memakai koordinat GPS Anda saat ini.',
-                      detail: cp.name,
+                      detail: '${cp.name} · ${kondisi == 'BERMASALAH' ? 'bermasalah' : kondisi == 'PERLU_PERHATIAN' ? 'perlu perhatian' : 'aman'}',
                       confirmLabel: 'Ya, kirim',
-                      tone: issue ? DialogTone.warn : DialogTone.save,
+                      tone: adaTemuan ? DialogTone.warn : DialogTone.save,
                     );
                     if (!setuju) return;
                     if (!sheetCtx.mounted) return;
@@ -541,7 +587,7 @@ class _CheckpointTile extends StatelessWidget {
                           method: 'GPS',
                           note: note.text.trim().isEmpty ? null : note.text.trim(),
                           photoUrl: photoUrl,
-                          issue: issue,
+                          condition: kondisi,
                         ));
                   },
                   icon: const Icon(Icons.my_location, size: 18),

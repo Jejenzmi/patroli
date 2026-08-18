@@ -15,6 +15,9 @@ import '../widgets/ui.dart';
 import 'announcements_screen.dart';
 import 'handover_screen.dart';
 import 'incidents_screen.dart';
+import 'kpi_screen.dart';
+import 'leaves_screen.dart';
+import 'tasks_screen.dart';
 import 'schedule_screen.dart';
 import 'services_screen.dart';
 import 'vehicles_screen.dart';
@@ -198,6 +201,10 @@ class _QuickActions extends StatelessWidget {
       (Icons.report_gmailerrorred_outlined, 'Lapor Insiden', P.danger, const IncidentFormScreen()),
       (Icons.campaign_outlined, 'Pengumuman', P.cyan, const AnnouncementsScreen()),
       (Icons.history, 'Riwayat Patroli', P.violet, const ScheduleScreen(tabAwal: 1)),
+      (Icons.assignment_outlined, 'Tugas Saya', P.emerald, const TasksScreen()),
+      (Icons.fact_check_outlined, 'Instruksi', P.cyan, const TasksScreen(tabAwal: 1)),
+      (Icons.emoji_events_outlined, 'Nilai Kinerja', P.amber, const KpiScreen()),
+      (Icons.event_available_outlined, 'Cuti & Lembur', P.violet, const LeavesScreen()),
       (Icons.apps_rounded, 'Semua Layanan', P.muted, const ServicesScreen()),
     ];
 
@@ -241,18 +248,32 @@ class _AttendanceCard extends StatelessWidget {
   final DutyState state;
   const _AttendanceCard({required this.state});
 
-  Future<String?> _swafoto(BuildContext context) async {
+  /// Mengambil swafoto presensi. Bila wajah personel sudah didaftarkan, foto
+  /// menjadi syarat mutlak karena server mencocokkannya (BRULE-003).
+  Future<String?> _swafoto(BuildContext context, {required bool wajib}) async {
     final shot = await ImagePicker().pickImage(
       source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.front,
       imageQuality: 70,
       maxWidth: 1280,
     );
-    if (shot == null) return null;
+    if (shot == null) {
+      if (wajib && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Swafoto wajib diambil karena presensi Anda diverifikasi wajah')),
+        );
+      }
+      return null;
+    }
     try {
       return await Api.i.upload(File(shot.path), folder: 'presensi');
-    } catch (_) {
-      return null; // Foto bersifat pelengkap; kegagalan unggah tidak menghalangi presensi.
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(wajib ? 'Foto gagal diunggah: $e' : 'Foto tidak terunggah, presensi tetap diproses')),
+        );
+      }
+      return null;
     }
   }
 
@@ -343,7 +364,9 @@ class _AttendanceCard extends StatelessWidget {
       tone: DialogTone.info,
     );
     if (!ok || !context.mounted) return;
-    final photo = await _swafoto(context);
+    final wajib = context.read<AuthBloc>().state.user?.faceEnrolled ?? false;
+    final photo = await _swafoto(context, wajib: wajib);
+    if (wajib && photo == null) return;
     if (!context.mounted) return;
     context.read<DutyBloc>().add(
           DutyCheckedIn(siteId: schedule.site.id, scheduleId: schedule.id, photoUrl: photo),
@@ -359,7 +382,7 @@ class _AttendanceCard extends StatelessWidget {
       tone: DialogTone.warn,
     );
     if (!ok || !context.mounted) return;
-    final photo = await _swafoto(context);
+    final photo = await _swafoto(context, wajib: false);
     if (!context.mounted) return;
     context.read<DutyBloc>().add(DutyCheckedOut(photoUrl: photo));
   }

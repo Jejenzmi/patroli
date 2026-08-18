@@ -60,11 +60,54 @@ async function tokenOf(username, password) {
   await ambil('/inventaris', 'inventaris');
   await ambil('/site', 'site');
   await ambil('/titik', 'titik');
+  await ambil('/tugas', 'tugas');
+  await ambil('/kpi', 'kpi', { tunggu: 4200 });
+  await ambil('/lantai', 'lantai', { tunggu: 3600 });
+  await ambil('/cuti', 'cuti');
   await ambil('/laporan', 'laporan');
   await ambil('/serah-terima', 'serah-terima');
   await ambil('/pengumuman', 'pengumuman');
   await ambil('/jejak-audit', 'audit');
   await ambil('/profil', 'profil');
+
+  // Tab percobaan presensi yang ditolak
+  await web.goto(`${WEB}/presensi`, { waitUntil: 'networkidle2' });
+  await sleep(2600);
+  await web.evaluate(() => {
+    [...document.querySelectorAll('button')].find((b) => /percobaan ditolak/i.test(b.innerText))?.click();
+  });
+  await sleep(1800);
+  await web.screenshot({ path: `${OUT}/web-presensi-ditolak.png` });
+  console.log('  · web-presensi-ditolak');
+
+  // Formulir pendaftaran wajah pada halaman personel
+  await web.goto(`${WEB}/personel`, { waitUntil: 'networkidle2' });
+  await sleep(2600);
+  await web.evaluate(() => {
+    const baris = document.querySelector('tbody tr');
+    [...(baris?.querySelectorAll('button') || [])]
+      .find((b) => /daftarkan wajah/i.test(b.title || ''))?.click();
+  });
+  await sleep(1400);
+  await web.screenshot({ path: `${OUT}/web-daftar-wajah.png` });
+  console.log('  · web-daftar-wajah');
+  await web.keyboard.press('Escape');
+  await sleep(600);
+
+  // Formulir penilaian kinerja
+  await web.goto(`${WEB}/kpi`, { waitUntil: 'networkidle2' });
+  await sleep(4000);
+  await web.evaluate(() => {
+    for (const r of document.querySelectorAll('tbody tr')) {
+      const b = [...r.querySelectorAll('button')].find((x) => x.innerText.trim().toLowerCase() === 'nilai');
+      if (b) { b.click(); return; }
+    }
+  });
+  await sleep(1400);
+  await web.screenshot({ path: `${OUT}/web-form-nilai.png` });
+  console.log('  · web-form-nilai');
+  await web.keyboard.press('Escape');
+  await sleep(600);
 
   // Rincian sesi patroli
   const sesi = await (await fetch(`${WEB}/api/patrols?limit=1&status=COMPLETED`, {
@@ -114,50 +157,126 @@ async function tokenOf(username, password) {
   /* ─────────── Layar aplikasi lapangan ─────────── */
   const hp = await browser.newPage();
   await hp.setViewport({ width: 412, height: 892, deviceScaleFactor: 2, isMobile: true });
+
+  // Flutter web menggambar di dalam shadow DOM dan memecah teks per kata,
+  // jadi elemen dicari lewat flt-span lalu ditekan di titik tengahnya.
+  const cari = (kata) => hp.evaluate((k) => {
+    const host = document.querySelector('flt-glass-pane');
+    if (!host || !host.shadowRoot) return null;
+    for (const el of host.shadowRoot.querySelectorAll('flt-span')) {
+      if ((el.textContent || '').trim() !== k) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 3 || r.height < 3) continue;
+      if (r.y < 0 || r.y > window.innerHeight) continue;
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }
+    return null;
+  }, kata);
+
+  const ketuk = async (kata, jeda = 1800) => {
+    const k = await cari(kata);
+    if (!k) { console.log(`  ! tidak menemukan "${kata}"`); return false; }
+    await hp.mouse.click(k.x, k.y);
+    await sleep(jeda);
+    return true;
+  };
+
+  const gulir = async (dy) => {
+    await hp.mouse.move(206, 500);
+    await hp.mouse.wheel({ deltaY: dy });
+    await sleep(900);
+  };
+
   const potret = async (nama) => {
     await hp.screenshot({ path: `${OUT}/hp-${nama}.png` });
     console.log(`  · hp-${nama}`);
   };
 
+  const kembali = async () => { await gulir(-1800); await hp.mouse.click(40, 35); await sleep(1800); };
+  const keBeranda = async () => { await hp.mouse.click(41, 850); await sleep(2000); await gulir(-1800); };
+
   await hp.goto(APP, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await sleep(1500);
+  await sleep(3200);
   await potret('splash');
-  await sleep(2500);
+  await sleep(3200);
   await potret('onboarding');
-  await hp.mouse.click(206, 620); // Lanjut
-  await sleep(1200);
+  await ketuk('LANJUT');
   await potret('onboarding2');
-  await hp.mouse.click(369, 28); // Lewati
-  await sleep(1600);
+  await ketuk('Lewati');
   await potret('masuk');
 
-  await hp.mouse.click(206, 303);
-  await sleep(400);
-  await hp.keyboard.type('guard1', { delay: 35 });
-  await hp.mouse.click(206, 392);
-  await sleep(400);
-  await hp.keyboard.type('guard123', { delay: 35 });
-  await hp.mouse.click(206, 460);
-  await sleep(7000);
+  const kolomUser = await cari('PENGGUNA');
+  if (kolomUser) {
+    await hp.mouse.click(kolomUser.x, kolomUser.y + 36);
+    await sleep(400);
+    await hp.keyboard.type('guard1', { delay: 35 });
+  }
+  const kolomSandi = await cari('SANDI');
+  if (kolomSandi) {
+    await hp.mouse.click(kolomSandi.x, kolomSandi.y + 36);
+    await sleep(400);
+    await hp.keyboard.type('guard123', { delay: 35 });
+  }
+  await ketuk('MASUK', 9000);
   await potret('beranda');
 
-  // Dialog presensi
-  await hp.mouse.click(206, 341);
-  await sleep(1800);
-  await potret('dialog-presensi');
-  await hp.mouse.click(121, 603); // Batal
-  await sleep(1600);
+  // Dialog konfirmasi presensi — kata 'MASUK' hanya ada pada tombolnya,
+  // sedangkan 'PRESENSI' juga dipakai judul kartu.
+  if (await ketuk('MASUK', 2400)) {
+    await potret('dialog-presensi');
+    await ketuk('Batal', 1800);
+  }
 
-  const nav = 850;
-  await hp.mouse.click(101, nav); await sleep(3000); await potret('patroli');
-  await hp.mouse.click(243, nav); await sleep(3000); await potret('layanan');
-  await hp.mouse.click(310, nav); await sleep(3000); await potret('insiden');
-  await hp.mouse.click(378, nav); await sleep(3200); await potret('profil');
+  // Kisi pintasan lengkap, termasuk modul BRD di baris ketiga
+  await gulir(420);
+  await potret('pintasan');
+  await potret('beranda-bawah');
 
   // Buku tamu lewat pintasan beranda
-  await hp.mouse.click(34, nav); await sleep(2500);
-  await hp.mouse.click(70, 466); await sleep(3000); await potret('buku-tamu');
-  await hp.mouse.click(206, 820); await sleep(2200); await potret('form-tamu');
+  if (await ketuk('Buku', 3200)) {
+    await potret('buku-tamu');
+    if (await ketuk('TAMU', 2400)) await potret('form-tamu');
+    await hp.keyboard.press('Escape');
+    await sleep(1000);
+    await kembali();
+  }
+
+  // Tugas & instruksi
+  if (await ketuk('Tugas', 3600)) {
+    await potret('tugas');
+    if (await ketuk('Instruksi', 2400)) await potret('instruksi');
+    await kembali();
+  }
+
+  // Nilai kinerja pribadi
+  await keBeranda(); await gulir(420);
+  if (await ketuk('Nilai', 5000)) {
+    await potret('kpi');
+    await gulir(500);
+    await potret('kpi-rincian');
+    await kembali();
+  }
+
+  // Semua layanan → cuti, izin, lembur
+  await keBeranda(); await gulir(420);
+  if (await ketuk('Semua', 3000)) {
+    await potret('layanan');
+    await gulir(600);
+    if (await ketuk('Cuti', 3600)) {
+      await potret('cuti');
+      if (await ketuk('AJUKAN', 2400)) await potret('cuti-form');
+      await hp.keyboard.press('Escape');
+      await sleep(1200);
+      await kembali();
+    }
+    await kembali();
+  }
+
+  // Tab patroli, insiden, dan profil
+  await keBeranda();
+  await hp.mouse.click(101, 850); await sleep(3200); await potret('patroli');
+  await hp.mouse.click(310, 850); await sleep(3000); await potret('insiden');
+  await hp.mouse.click(378, 850); await sleep(3200); await potret('profil');
 
   console.log('selesai');
   await browser.close();

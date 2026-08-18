@@ -4,6 +4,9 @@ class MeUser {
   final String? employeeId, rank, phone, avatarUrl;
   final SiteLite? homeSite;
 
+  /// Wajah sudah didaftarkan pengawas sehingga presensi wajib berswafoto.
+  final bool faceEnrolled;
+
   MeUser({
     required this.id,
     required this.name,
@@ -14,6 +17,7 @@ class MeUser {
     this.phone,
     this.avatarUrl,
     this.homeSite,
+    this.faceEnrolled = false,
   });
 
   factory MeUser.fromJson(Map<String, dynamic> j) => MeUser(
@@ -26,6 +30,7 @@ class MeUser {
         phone: j['phone'],
         avatarUrl: j['avatarUrl'],
         homeSite: j['homeSite'] != null ? SiteLite.fromJson(j['homeSite']) : null,
+        faceEnrolled: j['faceEnrolledAt'] != null || j['faceEnrolled'] == true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -38,6 +43,7 @@ class MeUser {
         'phone': phone,
         'avatarUrl': avatarUrl,
         'homeSite': homeSite?.toJson(),
+        'faceEnrolled': faceEnrolled,
       };
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../core/api.dart';
@@ -39,7 +41,9 @@ class DutyCheckpointScanned extends DutyEvent {
   final String method;
   final String? note;
   final String? photoUrl;
-  final bool issue;
+
+  /// AMAN, PERLU_PERHATIAN, atau BERMASALAH (BRULE-002).
+  final String condition;
   DutyCheckpointScanned({
     required this.sessionId,
     this.code,
@@ -47,7 +51,7 @@ class DutyCheckpointScanned extends DutyEvent {
     this.method = 'QR',
     this.note,
     this.photoUrl,
-    this.issue = false,
+    this.condition = 'AMAN',
   });
 }
 
@@ -117,6 +121,37 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
     on<DutyCheckpointScanned>(_scan);
     on<DutyPatrolFinished>(_finish);
     on<DutyPanicTriggered>(_panic);
+    _mulaiJejak();
+  }
+
+  Timer? _jejak;
+
+  /// FR-GPS-004: selama berstatus masuk, posisi dikirim berkala agar pusat
+  /// kendali dapat memantau sebaran personel tanpa perlu menunggu pemindaian.
+  void _mulaiJejak() {
+    _jejak = Timer.periodic(const Duration(minutes: 3), (_) => kirimJejak());
+  }
+
+  Future<void> kirimJejak() async {
+    if (!state.onDuty) return;
+    try {
+      final pos = await Geo.current();
+      await Api.i.post('/patrols/tracking/ping', {
+        'lat': pos.latitude,
+        'lng': pos.longitude,
+        'accuracyM': pos.accuracy,
+        'speedKph': pos.speed * 3.6,
+        'sessionId': state.session?.id,
+      });
+    } catch (_) {
+      // Jejak bersifat pelengkap: kegagalan jaringan tidak mengganggu tugas.
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _jejak?.cancel();
+    return super.close();
   }
 
   Future<void> _refresh(DutyRefreshed e, Emitter<DutyState> emit) async {
@@ -151,6 +186,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
       });
       add(DutyRefreshed());
       emit(state.copyWith(loading: false, flash: 'Presensi masuk berhasil dicatat'));
+      kirimJejak();
     } on ApiException catch (err) {
       emit(state.copyWith(loading: false, error: err.message));
     } catch (err) {
@@ -211,7 +247,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
         'lng': lng,
         'note': e.note,
         'photoUrl': e.photoUrl,
-        'condition': e.issue ? 'ISSUE' : 'NORMAL',
+        'condition': e.condition,
       });
       final s = await Api.i.get('/patrols/my/active');
       emit(state.copyWith(

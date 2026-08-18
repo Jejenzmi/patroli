@@ -58,6 +58,11 @@ ME=$(curl -s -H "$G" $B/auth/me); GID=$(echo "$ME" | j "['id']"); GSITE=$(echo "
 # tutup sesi yang mungkin masih berjalan
 OLD=$(curl -s -H "$G" $B/patrols/my/active | j "['id']")
 [ -n "$OLD" ] && curl -s -o /dev/null -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$OLD/finish -d '{}'
+# BRULE-001: patroli hanya boleh dimulai bila anggota berstatus masuk.
+SLAT=$(echo "$SITES" | python3 -c "import sys,json;d=json.load(sys.stdin);print([s['lat'] for s in d if s['id']=='$GSITE'][0])")
+SLNG=$(echo "$SITES" | python3 -c "import sys,json;d=json.load(sys.stdin);print([s['lng'] for s in d if s['id']=='$GSITE'][0])")
+CURA=$(curl -s -H "$G" $B/schedules/attendance/current | j "['id']")
+[ -z "$CURA" ] && curl -s -o /dev/null -X POST -H "$G" -H 'Content-Type: application/json' $B/schedules/attendance/check-in -d "{\"siteId\":\"$GSITE\",\"lat\":$SLAT,\"lng\":$SLNG}"
 GRID=$(curl -s -H "$G" "$B/master/routes?siteId=$GSITE" | j "[0]['id']")
 SES=$(curl -s -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/start -d "{\"routeId\":\"$GRID\"}")
 SESID=$(echo "$SES" | j "['id']")
@@ -89,8 +94,6 @@ MISS=$(echo "$DET" | j "['missedCheckpoints'].__len__()" | num)
 echo "== 5. Presensi =="
 CUR=$(curl -s -H "$G" $B/schedules/attendance/current | j "['id']")
 [ -n "$CUR" ] && curl -s -o /dev/null -X POST -H "$G" -H 'Content-Type: application/json' $B/schedules/attendance/check-out -d '{"lat":-6.28,"lng":107.15}'
-SLAT=$(echo "$SITES" | python3 -c "import sys,json;d=json.load(sys.stdin);print([s['lat'] for s in d if s['id']=='$GSITE'][0])")
-SLNG=$(echo "$SITES" | python3 -c "import sys,json;d=json.load(sys.stdin);print([s['lng'] for s in d if s['id']=='$GSITE'][0])")
 FARIN=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/schedules/attendance/check-in \
   -d "{\"siteId\":\"$GSITE\",\"lat\":-8.5,\"lng\":110.2}")
 [ "$FARIN" = "422" ] && chk "tolak presensi di luar geofence" 1 || chk "tolak presensi di luar geofence" 0 "$FARIN"
@@ -148,7 +151,9 @@ GID2=$(curl -s -H "$A" "$B/users?role=GUARD&pageSize=1" | j "['data'][0]['id']")
 SHID=$(curl -s -H "$A" "$B/master/shifts?siteId=$SID" | j "[0]['id']")
 BULK=$(curl -s -X POST -H "$A" -H 'Content-Type: application/json' $B/schedules/bulk \
   -d "{\"siteId\":\"$SID\",\"shiftId\":\"$SHID\",\"guardIds\":[\"$GID2\"],\"from\":\"2026-12-01\",\"to\":\"2026-12-07\"}" | j "['created']" | num)
-[ "$BULK" -ge 1 ] && chk "roster massal ($BULK jadwal)" 1 || chk "roster massal" 0 "$BULK"
+# Penjadwalan massal bersifat idempoten, jadi yang diperiksa adalah isi roster.
+ROSTER=$(curl -s -H "$A" "$B/schedules?siteId=$SID&from=2026-12-01&to=2026-12-07" | j ".__len__()" | num)
+[ "$ROSTER" -ge 1 ] && chk "roster massal ($ROSTER jadwal, $BULK baru)" 1 || chk "roster massal" 0 "$ROSTER/$BULK"
 TODAY=$(curl -s -H "$G" $B/schedules/my/today | j ".__len__()" | num)
 [ "$TODAY" -ge 0 ] && chk "jadwal saya hari ini" 1 || chk "jadwal saya" 0
 
