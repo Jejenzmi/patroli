@@ -132,16 +132,27 @@ class Antrean {
   /// hanya karena sinyal sedang mati. Berkasnya dihapus begitu kiriman
   /// berhasil, dan tidak pernah masuk galeri ponsel.
   Future<String?> simpanIsi(Uint8List isi) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final tujuan = Directory(p.join(dir.path, 'antrean'));
-      if (!await tujuan.exists()) await tujuan.create(recursive: true);
-      final berkas = File(p.join(tujuan.path, '${DateTime.now().microsecondsSinceEpoch}.jpg'));
-      await berkas.writeAsBytes(isi, flush: true);
-      return berkas.path;
-    } catch (_) {
-      return null;
+    final nama = '${DateTime.now().microsecondsSinceEpoch}.jpg';
+
+    // Folder aplikasi lebih dulu; bila tidak terjangkau — penyimpanan penuh,
+    // izin ditolak, atau pemanggilnya bukan aplikasi sungguhan — foto tetap
+    // ditulis ke folder sementara sistem. Kehilangan bukti karena gagal
+    // menyimpan jauh lebih buruk daripada berkas yang tempatnya kurang ideal.
+    for (final cari in [
+      () async => (await getApplicationDocumentsDirectory()).path,
+      () async => Directory.systemTemp.path,
+    ]) {
+      try {
+        final tujuan = Directory(p.join(await cari(), 'antrean'));
+        if (!await tujuan.exists()) await tujuan.create(recursive: true);
+        final berkas = File(p.join(tujuan.path, nama));
+        await berkas.writeAsBytes(isi, flush: true);
+        return berkas.path;
+      } catch (_) {
+        continue;
+      }
     }
+    return null;
   }
 
   Future<int> tambah({

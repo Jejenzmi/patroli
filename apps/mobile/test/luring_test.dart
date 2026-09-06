@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -158,5 +159,38 @@ void main() {
         reason: 'foto diunggah lebih dulu, baru laporannya');
     expect(jaringan.diterima.last, 'POST /incidents');
     expect(await Antrean.i.jumlah(), 0);
+  });
+
+  test('foto dari kamera diantre dari memori, tanpa berkas sementara', () async {
+    // Jalur yang sebenarnya dipakai aplikasi sejak foto bukti bertanda air:
+    // gambarnya tidak pernah menyentuh penyimpanan, jadi yang diantre adalah
+    // isinya. Berkas hanya lahir bila memang harus menunggu jaringan.
+    final isi = Uint8List.fromList(List.filled(128, 42));
+
+    jaringan.putus = true;
+    await Api.i.kirimAtauAntre(
+      jalur: '/patrols/x/scan',
+      isi: {'checkpointId': 'cp-1'},
+      label: 'Pemindaian titik',
+      isiBerkas: isi,
+      folderBerkas: 'patroli',
+      kolomBerkas: 'photoUrl',
+    );
+
+    final antre = await Antrean.i.semua();
+    expect(antre.length, 1);
+    final jalurBerkas = antre.first.berkas;
+    expect(jalurBerkas, isNotNull, reason: 'isi foto harus ditulis agar tidak hilang');
+    expect(File(jalurBerkas!).existsSync(), isTrue);
+    expect(File(jalurBerkas).readAsBytesSync().length, isi.length,
+        reason: 'isinya harus tersimpan utuh');
+
+    jaringan.putus = false;
+    await Sinkron.i.kirimSemua();
+    expect(jaringan.diterima.first, contains('/uploads'),
+        reason: 'foto diunggah lebih dulu, baru pemindaiannya');
+    expect(await Antrean.i.jumlah(), 0);
+    expect(File(jalurBerkas).existsSync(), isFalse,
+        reason: 'berkas antrean harus hilang setelah terkirim — tidak ada yang tertinggal di ponsel');
   });
 }
