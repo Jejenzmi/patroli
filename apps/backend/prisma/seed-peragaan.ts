@@ -134,10 +134,18 @@ async function main() {
   const hash = await bcrypt.hash(AKUN.sandi, 10);
   const demo = await prisma.user.upsert({
     where: { username: AKUN.username },
-    update: { passwordHash: hash, status: 'ACTIVE', isDemo: true, homeSiteId: site.id },
+    update: {
+      passwordHash: hash,
+      status: 'ACTIVE',
+      isDemo: true,
+      homeSiteId: site.id,
+      name: 'Anggota Peragaan',
+    },
     create: {
       username: AKUN.username,
-      name: 'Akun Peragaan Play Store',
+      // Nama ini tampil pada tangkapan layar halaman Play, jadi dijaga tetap
+      // wajar dan jujur — bukan nama orang karangan.
+      name: 'Anggota Peragaan',
       employeeId: 'DEMO-001',
       passwordHash: hash,
       role: 'GUARD',

@@ -49,6 +49,19 @@ class PatrolScreen extends StatelessWidget {
   }
 }
 
+/// Penanda hari untuk kartu rute: jadwal besok tidak boleh tampak seperti
+/// jadwal hari ini.
+String _hari(DateTime d) {
+  final kini = DateTime.now();
+  final t = DateTime(d.year, d.month, d.day);
+  final ini = DateTime(kini.year, kini.month, kini.day);
+  final selisih = t.difference(ini).inDays;
+  if (selisih == 0) return 'hari ini';
+  if (selisih == 1) return 'besok';
+  if (selisih == -1) return 'kemarin';
+  return DateFormat('d MMM', 'id').format(d);
+}
+
 /* ── Pilih rute untuk memulai patroli ── */
 
 class _RouteChooser extends StatelessWidget {
@@ -130,7 +143,10 @@ class _RouteChooser extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text('${s.site.name} · shift ${s.shiftName}',
+                        // Jadwal hari ini dan besok sama-sama ditampilkan agar
+                        // shift yang melewati tengah malam tetap terlihat.
+                        // Tanpa penanda hari, dua kartu bisa tampak kembar.
+                        Text('${s.site.name} · shift ${s.shiftName} · ${_hari(s.date)}',
                             style: const TextStyle(color: P.muted, fontSize: 12)),
                         const SizedBox(height: 12),
                         Wrap(
