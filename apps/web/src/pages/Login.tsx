@@ -10,13 +10,6 @@ const HIGHLIGHTS = [
   { icon: Siren, title: 'Respons darurat terukur', body: 'Tombol panik, eskalasi insiden, dan tenggat SLA yang terpantau otomatis.' },
 ];
 
-const DEMO = [
-  { u: 'admin', p: 'admin123', role: 'Super Admin' },
-  { u: 'komandan', p: 'komandan123', role: 'Chief Security' },
-  { u: 'danru1', p: 'danru123', role: 'Supervisor' },
-  { u: 'klien', p: 'klien123', role: 'Klien' },
-];
-
 export default function Login() {
   const { me, login } = useAuth();
   const nav = useNavigate();
@@ -150,7 +143,7 @@ export default function Login() {
                 autoFocus
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="mis. komandan"
+                placeholder="Nama pengguna atau NIP"
                 className="w-full"
                 required
               />
@@ -192,24 +185,9 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 rounded-2xl border border-line/70 bg-panel/50 p-4">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[.18em] text-muted">Akun demonstrasi</p>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO.map((a) => (
-                <button
-                  key={a.u}
-                  onClick={() => {
-                    setUsername(a.u);
-                    setPassword(a.p);
-                  }}
-                  className="rounded-xl border border-line bg-abyss/50 px-3 py-2 text-left transition hover:border-amber/40"
-                >
-                  <p className="num text-xs font-bold text-ink">{a.u}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted">{a.role}</p>
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="mt-8 text-center text-[11.5px] leading-relaxed text-muted">
+            Lupa kata sandi atau belum punya akun? Hubungi administrator satuan.
+          </p>
         </motion.div>
       </div>
     </div>
