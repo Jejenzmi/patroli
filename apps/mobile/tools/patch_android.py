@@ -103,4 +103,23 @@ for folder, isi in [("values", GAYA), ("values-night", GAYA), ("values-v27", GAY
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(isi)
 
-print("▸ Manifest, warna latar, dan gaya jendela disesuaikan (layar penuh, tanpa kedipan putih)")
+# Ikon peluncur bermerek Dharmapati. Kerangka android/ tidak dilacak git
+# (dibuat ulang oleh `flutter create`), jadi ikonnya disimpan di tools/ikon
+# dan disalin di sini agar mereknya tidak hilang saat membangun dari repo
+# yang masih bersih. Sumbernya assets/merek/logo.png — jalankan
+# tools/buat_ikon.py bila lambangnya berubah.
+import shutil
+
+ikon = pathlib.Path("tools/ikon")
+disalin = 0
+if ikon.exists():
+    for folder in ikon.iterdir():
+        if not folder.is_dir():
+            continue
+        tujuan = pathlib.Path("android/app/src/main/res") / folder.name
+        tujuan.mkdir(parents=True, exist_ok=True)
+        for berkas in folder.iterdir():
+            shutil.copy2(berkas, tujuan / berkas.name)
+            disalin += 1
+
+print(f"▸ Manifest, warna latar, dan gaya jendela disesuaikan; {disalin} ikon peluncur dipasang")
