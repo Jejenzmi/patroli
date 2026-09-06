@@ -17,6 +17,7 @@ image_picker_ios=/home/cirrus/.pub-cache/hosted/pub.dev/image_picker_ios-0.8.12+
 image_picker_linux=/home/cirrus/.pub-cache/hosted/pub.dev/image_picker_linux-0.2.1+2/
 image_picker_macos=/home/cirrus/.pub-cache/hosted/pub.dev/image_picker_macos-0.2.1+2/
 image_picker_windows=/home/cirrus/.pub-cache/hosted/pub.dev/image_picker_windows-0.2.1+1/
+in_app_update=/home/cirrus/.pub-cache/hosted/pub.dev/in_app_update-4.2.5/
 mobile_scanner=/home/cirrus/.pub-cache/hosted/pub.dev/mobile_scanner-5.2.3/
 package_info_plus=/home/cirrus/.pub-cache/hosted/pub.dev/package_info_plus-8.3.1/
 path_provider=/home/cirrus/.pub-cache/hosted/pub.dev/path_provider-2.1.5/

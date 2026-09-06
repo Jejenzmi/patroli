@@ -159,6 +159,23 @@ if 'android:scheme="market"' not in src:
     manifest.write_text(src)
 
 
+# Plugin Play In-App Update dikompilasi dengan Kotlin yang lebih baru daripada
+# bawaan templat Flutter 3.24 (1.8.22); tanpa penyetelan ini modulnya gagal
+# dikompilasi. 2.1.0 dipilih karena sudah terbukti pada build lain di server
+# yang sama.
+settings = pathlib.Path("android/settings.gradle")
+if settings.exists():
+    isi = settings.read_text()
+    baru = re.sub(
+        r'(id "org\.jetbrains\.kotlin\.android" version ")[0-9.]+(")',
+        r"\g<1>2.1.0\g<2>",
+        isi,
+    )
+    if baru != isi:
+        settings.write_text(baru)
+        print("▸ Kotlin Gradle plugin disetel ke 2.1.0")
+
+
 # ── Identitas paket, target API, dan penandatanganan rilis ──
 
 gradle = pathlib.Path("android/app/build.gradle")

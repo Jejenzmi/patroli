@@ -204,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
             const Center(
-              child: Text('DHARMAPATI Field App · v1.6.1',
+              child: Text('DHARMAPATI Field App · v1.6.2',
                   style: TextStyle(color: P.muted, fontSize: 11)),
             ),
           ]))],
