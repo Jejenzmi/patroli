@@ -1,11 +1,19 @@
 """Menyesuaikan kerangka Android hasil `flutter create` untuk kebutuhan DHARMAPATI.
 
-Nilai compileSdk/minSdk sengaja dibiarkan mengikuti bawaan Flutter
-(`flutter.compileSdkVersion` dkk.) — plugin seperti geolocator_android membaca
-nilai yang sama, dan menuliskannya secara manual justru memutus rantai itu.
+minSdk dibiarkan mengikuti bawaan Flutter (`flutter.minSdkVersion`) — plugin
+seperti geolocator_android membaca nilai yang sama. compileSdk dan targetSdk
+justru harus ditulis tegas: Google Play mewajibkan API 36 bagi aplikasi baru
+maupun pembaruan sejak 31 Agustus 2026, sedangkan bawaan Flutter 3.24 masih 34.
+
+Penandatanganan rilis dibaca dari android/key.properties yang tidak ikut masuk
+repo. Bila berkas itu tidak ada, build kembali memakai kunci debug supaya
+`flutter run --release` tetap dapat dijalankan saat pengembangan.
 """
 import re
 import pathlib
+
+# Nama paket permanen aplikasi di Google Play: sekali terbit tidak dapat diubah.
+APP_ID = "id.co.dharmapati.patroli"
 
 PERMS = """    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -123,3 +131,76 @@ if ikon.exists():
             disalin += 1
 
 print(f"▸ Manifest, warna latar, dan gaya jendela disesuaikan; {disalin} ikon peluncur dipasang")
+
+
+# ── Identitas paket, target API, dan penandatanganan rilis ──
+
+gradle = pathlib.Path("android/app/build.gradle")
+g = gradle.read_text()
+
+g = g.replace("id.gokar.patroli_mobile", APP_ID)
+g = g.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
+g = g.replace("targetSdk = flutter.targetSdkVersion", "targetSdk = 36")
+
+if "keystoreProperties" not in g:
+    g = g.replace(
+        "android {",
+        'def keystoreProperties = new Properties()\n'
+        'def keystorePropertiesFile = rootProject.file("key.properties")\n'
+        "if (keystorePropertiesFile.exists()) {\n"
+        "    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n"
+        "}\n\n"
+        "android {",
+        1,
+    )
+    g = g.replace(
+        "    buildTypes {",
+        "    signingConfigs {\n"
+        "        release {\n"
+        "            if (keystorePropertiesFile.exists()) {\n"
+        '                keyAlias = keystoreProperties["keyAlias"]\n'
+        '                keyPassword = keystoreProperties["keyPassword"]\n'
+        '                storeFile = file(keystoreProperties["storeFile"])\n'
+        '                storePassword = keystoreProperties["storePassword"]\n'
+        "            }\n"
+        "        }\n"
+        "    }\n\n"
+        "    buildTypes {",
+        1,
+    )
+    g = g.replace(
+        "        release {\n"
+        "            // TODO: Add your own signing config for the release build.\n"
+        "            // Signing with the debug keys for now, so `flutter run --release` works.\n"
+        "            signingConfig = signingConfigs.debug\n"
+        "        }",
+        "        release {\n"
+        "            // Kunci debug hanya dipakai bila key.properties belum disiapkan,\n"
+        "            // supaya `flutter run --release` tetap bisa dijalankan.\n"
+        "            signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug\n"
+        "        }",
+        1,
+    )
+
+gradle.write_text(g)
+
+# MainActivity harus berada di direktori yang sesuai dengan nama paketnya.
+akarKotlin = pathlib.Path("android/app/src/main/kotlin")
+adaMain = list(akarKotlin.rglob("MainActivity.kt")) if akarKotlin.exists() else []
+tujuanMain = akarKotlin / APP_ID.replace(".", "/")
+lamaMain = [m for m in adaMain if m.parent != tujuanMain]
+if lamaMain and not (tujuanMain / "MainActivity.kt").exists():
+    tujuanMain.mkdir(parents=True, exist_ok=True)
+    isi = re.sub(r"^package .*$", "package " + APP_ID, lamaMain[0].read_text(), count=1, flags=re.M)
+    (tujuanMain / "MainActivity.kt").write_text(isi)
+
+# Sisa kelas dari nama paket lama harus benar-benar hilang: dua MainActivity
+# dalam satu modul ikut terkompilasi dan menyesatkan siapa pun yang membacanya.
+for m in lamaMain:
+    m.unlink()
+    d = m.parent
+    while d != akarKotlin and d.is_dir() and not any(d.iterdir()):
+        d.rmdir()
+        d = d.parent
+if lamaMain:
+    print("▸ MainActivity dipindah ke paket " + APP_ID)

@@ -13,3 +13,8 @@ docs/panduan/panduan.html
 
 # Dokumen penawaran (harga, margin, tanda tangan) tidak diikutkan ke repo publik.
 docs/penawaran/
+
+# Kunci penandatanganan aplikasi — jangan pernah masuk repo.
+apps/mobile/android/key.properties
+*.jks
+*.keystore
