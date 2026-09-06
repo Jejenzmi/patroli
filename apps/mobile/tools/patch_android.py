@@ -133,6 +133,32 @@ if ikon.exists():
 print(f"▸ Manifest, warna latar, dan gaya jendela disesuaikan; {disalin} ikon peluncur dipasang")
 
 
+# Android 11 ke atas menyembunyikan aplikasi lain kecuali dinyatakan di sini;
+# tanpa penyataan ini canLaunchUrl selalu menjawab false dan tombol "Perbarui"
+# tidak membuka apa pun.
+#
+# Templat Flutter sudah memasang blok <queries> sendiri untuk PROCESS_TEXT,
+# jadi yang diperiksa bukan ada-tidaknya blok itu melainkan skema yang kita
+# perlukan — kekeliruan yang sempat membuat penyataan ini tidak pernah terpasang.
+if 'android:scheme="market"' not in src:
+    TAMBAHAN = (
+        "        <intent>\n"
+        '            <action android:name="android.intent.action.VIEW" />\n'
+        '            <data android:scheme="https" />\n'
+        "        </intent>\n"
+        "        <intent>\n"
+        '            <action android:name="android.intent.action.VIEW" />\n'
+        '            <data android:scheme="market" />\n'
+        "        </intent>\n"
+        "    </queries>"
+    )
+    if "</queries>" in src:
+        src = src.replace("</queries>", TAMBAHAN, 1)
+    else:
+        src = src.replace("<application", "<queries>\n" + TAMBAHAN + "\n\n    <application", 1)
+    manifest.write_text(src)
+
+
 # ── Identitas paket, target API, dan penandatanganan rilis ──
 
 gradle = pathlib.Path("android/app/build.gradle")

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/theme.dart';
+import '../core/pembaruan.dart';
 import '../blocs/duty_bloc.dart';
 import '../models/models.dart';
 import '../widgets/app_dialog.dart';
@@ -27,6 +28,12 @@ class _ShellScreenState extends State<ShellScreen> {
   void initState() {
     super.initState();
     context.read<DutyBloc>().add(DutyRefreshed());
+
+    // Diperiksa setelah bingkai pertama tergambar agar dialognya punya
+    // konteks yang sah, dan tidak menunda tampilnya beranda.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Pembaruan.i.periksa(context);
+    });
   }
 
   /// Tombol pindai di tengah: langsung ke kamera bila ada patroli berjalan.

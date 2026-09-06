@@ -1,7 +1,7 @@
 name: patroli_mobile
 description: DHARMAPATI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
 publish_to: 'none'
-version: 1.6.0+7
+version: 1.6.1+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -36,6 +36,8 @@ dependencies:
   path_provider: ^2.1.4
   # Mengenali anggota yang tidak bergerak saat berjaga sendirian (man-down).
   sensors_plus: ^6.0.1
+  # Membuka halaman Play Store saat ada pembaruan aplikasi.
+  url_launcher: ^6.3.1
 
 dependency_overrides:
   # 4.6.2 mengambil compileSdk dari ekstensi Flutter yang baru tersedia pada

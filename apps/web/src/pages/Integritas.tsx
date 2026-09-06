@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldAlert, Smartphone, MapPinOff, Gauge, Unlink, Ban, CheckCircle2, Monitor } from 'lucide-react';
+import { ShieldAlert, Smartphone, MapPinOff, Gauge, Unlink, Ban, CheckCircle2, Monitor, DownloadCloud } from 'lucide-react';
 import dayjs from 'dayjs';
 import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
-import { Panel, PageHead, Loading, Empty, Avatar, Table, Confirm, Stat } from '../components/ui';
+import { Panel, PageHead, Loading, Empty, Avatar, Table, Confirm, Stat, Field, Input } from '../components/ui';
 import { ask } from '../components/confirm';
 
 /**
@@ -88,6 +88,8 @@ export default function Integritas() {
         <Stat label="Perangkat Asing" value={jumlah('PERANGKAT_ASING')} icon={Smartphone} tone="cyan" />
         <Stat label="Emulator" value={jumlah('EMULATOR')} icon={Monitor} tone="amber" />
       </div>
+
+      <VersiAplikasi />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {[
@@ -242,5 +244,104 @@ export default function Integritas() {
         danger
       />
     </>
+  );
+}
+
+/**
+ * Pengaturan versi aplikasi lapangan.
+ *
+ * Play memang mengabarkan pembaruan, tetapi hanya di dalam aplikasi Play dan
+ * hanya bila penggunanya membukanya. Angka di sini yang menentukan kapan
+ * aplikasi memberi tahu anggota — dan kapan pembaruan menjadi wajib.
+ */
+function VersiAplikasi() {
+  const qc = useQueryClient();
+  const { me } = useAuth();
+  const bolehUbah = me?.role === 'SUPER_ADMIN' || me?.role === 'ADMIN';
+
+  const { data } = useQuery<any>({
+    queryKey: ['app-versi'],
+    queryFn: () => api.get('/app/versi/config'),
+    enabled: bolehUbah,
+  });
+
+  const [form, setForm] = useState<any>(null);
+  const nilai = form ?? data;
+
+  const simpan = async () => {
+    if (!nilai) return;
+    if (!(await ask.save('versi aplikasi lapangan'))) return;
+    try {
+      await api.put('/app/versi/config', {
+        versi: String(nilai.versi),
+        build: Number(nilai.build),
+        buildMinimum: Number(nilai.buildMinimum),
+        catatan: String(nilai.catatan || ''),
+        tautanPlay: String(nilai.tautanPlay),
+        tautanApk: String(nilai.tautanApk),
+      });
+      toast.ok('Versi aplikasi tersimpan', 'Anggota akan diberi tahu saat membuka aplikasi.');
+      setForm(null);
+      qc.invalidateQueries({ queryKey: ['app-versi'] });
+    } catch (e: any) {
+      toast.err('Gagal menyimpan', e.message);
+    }
+  };
+
+  if (!bolehUbah || !nilai) return null;
+
+  return (
+    <Panel
+      title="Versi Aplikasi Lapangan"
+      icon={DownloadCloud}
+      className="mb-4"
+      action={
+        <button className="btn-primary btn-sm" onClick={simpan}>
+          Simpan
+        </button>
+      }
+    >
+      <p className="mb-4 text-xs leading-relaxed text-muted">
+        Anggota yang membuka aplikasi dengan nomor build di bawah <b>build terbaru</b> akan melihat
+        tawaran pembaruan yang boleh ditunda. Di bawah <b>build minimum</b>, pembaruan menjadi wajib
+        dan aplikasi tidak dapat dipakai sebelum diperbarui. Naikkan angkanya setelah versi baru
+        benar-benar terbit di Play.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="Versi terbaru" hint="Ditampilkan pada dialog, mis. 1.6.1">
+          <Input value={nilai.versi ?? ''} onChange={(e) => setForm({ ...nilai, versi: e.target.value })} />
+        </Field>
+        <Field label="Build terbaru" hint="Angka inilah yang dibandingkan aplikasi">
+          <Input
+            type="number"
+            value={nilai.build ?? 1}
+            onChange={(e) => setForm({ ...nilai, build: e.target.value })}
+          />
+        </Field>
+        <Field label="Build minimum" hint="Di bawah ini pembaruan dipaksa">
+          <Input
+            type="number"
+            value={nilai.buildMinimum ?? 1}
+            onChange={(e) => setForm({ ...nilai, buildMinimum: e.target.value })}
+          />
+        </Field>
+        <Field label="Tautan Play Store" className="sm:col-span-2">
+          <Input
+            value={nilai.tautanPlay ?? ''}
+            onChange={(e) => setForm({ ...nilai, tautanPlay: e.target.value })}
+          />
+        </Field>
+        <Field label="Tautan berkas APK" hint="Cadangan untuk ponsel tanpa Play">
+          <Input value={nilai.tautanApk ?? ''} onChange={(e) => setForm({ ...nilai, tautanApk: e.target.value })} />
+        </Field>
+        <Field label="Catatan pembaruan" className="sm:col-span-3" hint="Ditampilkan pada dialog; boleh dikosongkan">
+          <Input
+            value={nilai.catatan ?? ''}
+            onChange={(e) => setForm({ ...nilai, catatan: e.target.value })}
+            placeholder="mis. Perbaikan pencatatan laporan titik patroli"
+          />
+        </Field>
+      </div>
+    </Panel>
   );
 }

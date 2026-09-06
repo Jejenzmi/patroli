@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         controller: _user,
                         textInputAction: TextInputAction.next,
                         decoration: const InputDecoration(
-                          hintText: 'mis. guard1',
+                          hintText: 'nama pengguna atau NIP',
                           prefixIcon: Icon(Icons.badge_outlined, color: P.muted, size: 20),
                         ),
                       ),
@@ -169,18 +169,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           children: [
                             const Icon(Icons.info_outline, size: 16, color: P.cyan),
                             const SizedBox(width: 10),
-                            Expanded(
-                              child: RichText(
-                                text: const TextSpan(
-                                  style: TextStyle(color: P.muted, fontSize: 12, height: 1.5),
-                                  children: [
-                                    TextSpan(text: 'Akun percobaan: '),
-                                    TextSpan(
-                                      text: 'guard1 / guard123',
-                                      style: TextStyle(color: P.ink, fontWeight: FontWeight.w700),
-                                    ),
-                                  ],
-                                ),
+                            const Expanded(
+                              child: Text(
+                                'Akun diberikan administrator perusahaan. Hubungi komandan regu '
+                                'bila lupa kata sandi.',
+                                style: TextStyle(color: P.muted, fontSize: 12, height: 1.5),
                               ),
                             ),
                           ],

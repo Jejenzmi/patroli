@@ -34,6 +34,7 @@ import financeRoutes from './routes/finance';
 import complianceRoutes from './routes/compliance';
 import reliefRoutes from './routes/relief';
 import alarmSimRoutes from './routes/alarm-sim';
+import appRoutes from './routes/app';
 
 const app = express();
 const PORT = Number(process.env.PORT || 5027);
@@ -74,6 +75,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/kpi', kpiRoutes);
+// Kendali versi aplikasi lapangan. Pembacaannya tanpa token: aplikasi harus
+// tahu dirinya kedaluwarsa bahkan sebelum penggunanya dapat masuk.
+app.use('/api/app', appRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/finance', financeRoutes);
