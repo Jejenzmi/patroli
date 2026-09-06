@@ -10,3 +10,6 @@ deploy/backups/
 docs/panduan/img/
 docs/panduan/out/
 docs/panduan/panduan.html
+
+# Dokumen penawaran (harga, margin, tanda tangan) tidak diikutkan ke repo publik.
+docs/penawaran/
