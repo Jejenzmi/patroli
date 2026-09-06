@@ -1,7 +1,7 @@
 name: patroli_mobile
 description: DHARMAPATI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
 publish_to: 'none'
-version: 2.1.0+9
+version: 1.5.0+6
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

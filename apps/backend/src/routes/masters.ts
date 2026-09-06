@@ -30,6 +30,15 @@ const clientSchema = z.object({
   phone: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
+  provinceCode: z.string().optional().nullable(),
+  provinceName: z.string().optional().nullable(),
+  regencyCode: z.string().optional().nullable(),
+  regencyName: z.string().optional().nullable(),
+  districtCode: z.string().optional().nullable(),
+  districtName: z.string().optional().nullable(),
+  villageCode: z.string().optional().nullable(),
+  villageName: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
   logoUrl: z.string().optional().nullable(),
   contractNo: z.string().optional().nullable(),
   contractEnd: z.string().optional().nullable(),
@@ -62,6 +71,44 @@ router.delete('/clients/:id', allow(...ADMIN_ONLY), async (req, res) => {
 });
 
 /* ─────────────────────────── SITE / LOKASI ─────────────────────────── */
+
+/* ─────────────────────────── WILAYAH ─────────────────────────── */
+
+/**
+ * Daftar wilayah berjenjang untuk pengisian alamat.
+ * Tanpa `parent` yang dikembalikan adalah seluruh provinsi.
+ */
+router.get('/wilayah', async (req, res) => {
+  const parent = req.query.parent ? String(req.query.parent) : null;
+  const cari = req.query.q ? String(req.query.q).trim() : '';
+
+  // Pencarian bebas dipakai kotak isian yang mengetik langsung; tanpa kata
+  // kunci, yang dikirim adalah anak dari kode induk.
+  const where = cari
+    ? { name: { contains: cari, mode: 'insensitive' as const }, ...(parent ? { parentCode: parent } : {}) }
+    : { parentCode: parent };
+
+  const rows = await prisma.region.findMany({
+    where,
+    select: { code: true, name: true, level: true },
+    orderBy: { name: 'asc' },
+    take: 1000,
+  });
+  res.json(rows);
+});
+
+/** Menelusuri satu kode menjadi rangkaian wilayah dari provinsi ke bawah. */
+router.get('/wilayah/:code', async (req, res) => {
+  const kode = String(req.params.code);
+  const bagian = kode.split('.');
+  const kodeInduk = bagian.map((_, i) => bagian.slice(0, i + 1).join('.'));
+  const rows = await prisma.region.findMany({
+    where: { code: { in: kodeInduk } },
+    select: { code: true, name: true, level: true },
+    orderBy: { level: 'asc' },
+  });
+  res.json(rows);
+});
 
 router.get('/sites', async (req, res) => {
   const where: any = { ...siteWhere(req) };
@@ -105,6 +152,15 @@ const siteSchema = z.object({
   name: z.string().min(2),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
+  provinceCode: z.string().optional().nullable(),
+  provinceName: z.string().optional().nullable(),
+  regencyCode: z.string().optional().nullable(),
+  regencyName: z.string().optional().nullable(),
+  districtCode: z.string().optional().nullable(),
+  districtName: z.string().optional().nullable(),
+  villageCode: z.string().optional().nullable(),
+  villageName: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
   lat: z.number(),
   lng: z.number(),
   radiusM: z.number().int().positive().optional(),

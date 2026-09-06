@@ -6,6 +6,7 @@ import { toast, useAuth } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Select, Confirm, SearchBox } from '../components/ui';
 import MapView from '../components/MapView';
 import { ask } from '../components/confirm';
+import { PilihWilayah, KoordinatSite, alamatRingkas } from '../components/wilayah';
 
 export default function Sites() {
   const qc = useQueryClient();
@@ -66,7 +67,10 @@ export default function Sites() {
                         {!s.isActive && <span className="chip border-danger/40 bg-danger/10 text-danger">Nonaktif</span>}
                       </div>
                       <h3 className="mt-1 truncate text-[15px] font-bold">{s.name}</h3>
-                      <p className="truncate text-xs text-muted">{s.client?.name} · {s.address || '—'}</p>
+                      <p className="text-xs text-muted">{s.client?.name}</p>
+                      <p className="mt-0.5 text-[11.5px] leading-snug text-muted">
+                        {alamatRingkas(s) || 'Alamat belum diisi'}
+                      </p>
                     </div>
                     {canEdit && (
                       <div className="flex shrink-0 gap-1.5">
@@ -133,21 +137,29 @@ export default function Sites() {
           <Field label="Nama site" className="sm:col-span-2">
             <input className="w-full" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label="Alamat" className="sm:col-span-2">
-            <input className="w-full" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </Field>
-          <Field label="Lintang (latitude)" hint="Ambil dari Google Maps, mis. -6.27950">
-            <input className="w-full" value={form.lat ?? ''} onChange={(e) => setForm({ ...form, lat: e.target.value })} />
-          </Field>
-          <Field label="Bujur (longitude)">
-            <input className="w-full" value={form.lng ?? ''} onChange={(e) => setForm({ ...form, lng: e.target.value })} />
-          </Field>
+          <div className="sm:col-span-2 mt-1 border-t border-line/70 pt-3">
+            <p className="text-[11px] font-bold uppercase tracking-[.15em] text-amber">Alamat Lokasi</p>
+          </div>
+          <PilihWilayah nilai={form} onChange={(v) => setForm({ ...form, ...v })} />
+
+          <div className="sm:col-span-2 mt-1 border-t border-line/70 pt-3">
+            <p className="text-[11px] font-bold uppercase tracking-[.15em] text-amber">Titik Koordinat</p>
+            <p className="mt-1 text-[11px] text-muted">
+              Menjadi pusat geofence: presensi dan pemindaian titik hanya diterima di sekitarnya.
+            </p>
+          </div>
+          <KoordinatSite
+            lat={form.lat}
+            lng={form.lng}
+            onChange={(lat, lng) => setForm({ ...form, lat, lng })}
+          />
           <Field label="Radius geofence (meter)" hint="Presensi hanya diterima dalam radius ini.">
             <input type="number" className="w-full" value={form.radiusM ?? 200} onChange={(e) => setForm({ ...form, radiusM: e.target.value })} />
           </Field>
-          <Field label="Kota">
-            <input className="w-full" value={form.city || ''} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          </Field>
+
+          <div className="sm:col-span-2 mt-1 border-t border-line/70 pt-3">
+            <p className="text-[11px] font-bold uppercase tracking-[.15em] text-amber">Penanggung Jawab Lokasi</p>
+          </div>
           <Field label="Nama PIC lokasi">
             <input className="w-full" value={form.picName || ''} onChange={(e) => setForm({ ...form, picName: e.target.value })} />
           </Field>

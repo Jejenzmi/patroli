@@ -13,6 +13,10 @@ if [ "$SEED_DEMO" = "true" ]; then
   npx tsx apps/backend/prisma/seed.ts || echo "  (seed contoh dilewati)"
 fi
 
+# Daftar wilayah administratif (Kepmendagri 2025) untuk pengisian alamat.
+echo "▸ Menyiapkan daftar wilayah…"
+npx tsx apps/backend/prisma/seed-wilayah.ts || echo "  (seed wilayah dilewati)"
+
 # Modul keuangan: tabel TER, golongan upah, UMK, hari libur, kontrak awal.
 # Idempoten — hanya mengisi yang masih kosong.
 echo "▸ Menyiapkan data keuangan…"

@@ -6,6 +6,7 @@ import { toast } from '../lib/store';
 import { Panel, PageHead, Loading, Empty, Modal, Field, Confirm } from '../components/ui';
 import { d, num } from '../lib/format';
 import { ask } from '../components/confirm';
+import { PilihWilayah, alamatRingkas } from '../components/wilayah';
 
 export default function Clients() {
   const qc = useQueryClient();
@@ -69,7 +70,11 @@ export default function Clients() {
               </div>
 
               <div className="mt-4 space-y-1.5 text-[12px] text-muted">
-                {c.address && <p className="flex items-start gap-1.5"><MapPin size={12} className="mt-0.5 shrink-0" /> {c.address}</p>}
+                {alamatRingkas(c) && (
+                  <p className="flex items-start gap-1.5">
+                    <MapPin size={12} className="mt-0.5 shrink-0" /> {alamatRingkas(c)}
+                  </p>
+                )}
                 {c.phone && <p className="flex items-center gap-1.5"><Phone size={12} /> {c.phone}</p>}
                 {c.contractNo && (
                   <p className="flex items-center gap-1.5">
@@ -122,9 +127,10 @@ export default function Clients() {
           <Field label="Kontrak berakhir">
             <input type="date" className="w-full" value={form.contractEnd || ''} onChange={(e) => setForm({ ...form, contractEnd: e.target.value })} />
           </Field>
-          <Field label="Alamat" className="sm:col-span-2">
-            <input className="w-full" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </Field>
+          <div className="sm:col-span-2 mt-1 border-t border-line/70 pt-3">
+            <p className="text-[11px] font-bold uppercase tracking-[.15em] text-amber">Alamat Kantor Klien</p>
+          </div>
+          <PilihWilayah nilai={form} onChange={(v) => setForm({ ...form, ...v })} />
         </div>
       </Modal>
 

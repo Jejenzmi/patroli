@@ -287,6 +287,15 @@ model Client {
   phone       String?
   email       String?
   address     String?
+  provinceCode String?
+  provinceName String?
+  regencyCode  String?
+  regencyName  String?
+  districtCode String?
+  districtName String?
+  villageCode  String?
+  villageName  String?
+  postalCode   String?
   logoUrl     String?
   contractNo  String?
   contractEnd DateTime?
@@ -309,6 +318,17 @@ model Site {
   name      String
   address   String?
   city      String?
+  /// Alamat berjenjang. Kode disimpan untuk penelusuran, namanya ikut
+  /// disimpan agar laporan dan ekspor tidak perlu menggabung tabel.
+  provinceCode String?
+  provinceName String?
+  regencyCode  String?
+  regencyName  String?
+  districtCode String?
+  districtName String?
+  villageCode  String?
+  villageName  String?
+  postalCode   String?
   lat       Float
   lng       Float
   /// Radius geofence area site (meter)
@@ -1750,4 +1770,28 @@ model ReliefCandidate {
 
   @@unique([offerId, guardId])
   @@index([guardId])
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WILAYAH ADMINISTRATIF
+//
+// Kode dan nama wilayah Indonesia menurut Kepmendagri 300.2.2-2138 Tahun 2025:
+// 38 provinsi, 514 kabupaten/kota, 7.285 kecamatan, 83.762 desa/kelurahan.
+// Disimpan di basis data sendiri, bukan diambil dari layanan luar, agar
+// pengisian alamat tetap jalan meski jaringan keluar sedang bermasalah.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Region {
+  /// Kode berjenjang: "32" · "32.15" · "32.15.01" · "32.15.01.2001"
+  code       String  @id
+  name       String
+  /// 1 provinsi · 2 kabupaten/kota · 3 kecamatan · 4 desa/kelurahan
+  level      Int
+  parentCode String?
+  parent     Region? @relation("IndukWilayah", fields: [parentCode], references: [code])
+  children   Region[] @relation("IndukWilayah")
+
+  @@index([parentCode])
+  @@index([level, name])
 }
