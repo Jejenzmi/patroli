@@ -16,6 +16,7 @@ export const LABEL_DARURAT: Record<string, string> = {
   MEDIS: "Gawat medis",
   KRIMINAL: "Tindak kriminal",
   BENCANA: "Bencana alam",
+  MAN_DOWN: "Anggota tidak bergerak",
 };
 
 export async function divisiUntuk(type: string, siteId: string) {

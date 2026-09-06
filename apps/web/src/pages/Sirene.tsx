@@ -22,6 +22,7 @@ const JENIS: { k: string; l: string; tone: string }[] = [
   { k: 'MEDIS', l: 'Gawat medis', tone: 'border-emerald/45 bg-emerald/12 text-emerald' },
   { k: 'KRIMINAL', l: 'Tindak kriminal', tone: 'border-danger/45 bg-danger/12 text-danger' },
   { k: 'BENCANA', l: 'Bencana alam', tone: 'border-violet/45 bg-violet/12 text-violet' },
+  { k: 'MAN_DOWN', l: 'Anggota tidak bergerak', tone: 'border-amber/45 bg-amber/12 text-amber' },
   { k: 'UMUM', l: 'Bantuan umum', tone: 'border-cyan/45 bg-cyan/12 text-cyan' },
 ];
 

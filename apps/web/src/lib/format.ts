@@ -84,6 +84,7 @@ export const STATUS_LABEL: Record<string, string> = {
   MEDIUM: 'Sedang',
   HIGH: 'Tinggi',
   CRITICAL: 'Kritis',
+  MAN_DOWN: 'Anggota Tidak Bergerak',
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrator',
   SUPERVISOR: 'Supervisor',
@@ -92,6 +93,16 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 export const label = (k?: string | null) => (k ? STATUS_LABEL[k] || k.replace(/_/g, ' ') : '—');
+
+export const PANIC_LABEL: Record<string, string> = {
+  UMUM: 'Bantuan Umum',
+  KEBAKARAN: 'Kebakaran',
+  KECELAKAAN: 'Kecelakaan Kerja',
+  MEDIS: 'Gawat Medis',
+  KRIMINAL: 'Tindak Kriminal',
+  BENCANA: 'Bencana Alam',
+  MAN_DOWN: 'Anggota Tidak Bergerak',
+};
 
 export const CATEGORY_LABEL: Record<string, string> = {
   PENCURIAN: 'Pencurian',

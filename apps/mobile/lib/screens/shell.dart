@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../core/theme.dart';
 import '../blocs/duty_bloc.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/man_down.dart';
 import 'home_screen.dart';
 import 'patrol_screen.dart';
 import 'incidents_screen.dart';
@@ -55,7 +56,10 @@ class _ShellScreenState extends State<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<DutyBloc, DutyState>(
+    // Pengawas man-down dipasang di kerangka, bukan di satu layar, agar tetap
+    // hidup ke mana pun anggota berpindah tab.
+    return PengawasManDown(
+      child: BlocListener<DutyBloc, DutyState>(
       listenWhen: (a, b) => a.flash != b.flash || a.error != b.error,
       listener: (context, state) {
         final msg = state.error ?? state.flash;
@@ -108,6 +112,7 @@ class _ShellScreenState extends State<ShellScreen> {
           index: _index,
           onTap: (i) => setState(() => _index = i),
         ),
+      ),
       ),
     );
   }

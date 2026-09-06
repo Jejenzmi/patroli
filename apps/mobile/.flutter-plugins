@@ -29,6 +29,7 @@ permission_handler_android=/home/cirrus/.pub-cache/hosted/pub.dev/permission_han
 permission_handler_apple=/home/cirrus/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.10/
 permission_handler_html=/home/cirrus/.pub-cache/hosted/pub.dev/permission_handler_html-0.1.4+1/
 permission_handler_windows=/home/cirrus/.pub-cache/hosted/pub.dev/permission_handler_windows-0.2.1/
+sensors_plus=/home/cirrus/.pub-cache/hosted/pub.dev/sensors_plus-6.1.2/
 shared_preferences=/home/cirrus/.pub-cache/hosted/pub.dev/shared_preferences-2.5.3/
 shared_preferences_android=/home/cirrus/.pub-cache/hosted/pub.dev/shared_preferences_android-2.4.7/
 shared_preferences_foundation=/home/cirrus/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.4/

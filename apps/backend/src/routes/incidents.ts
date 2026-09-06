@@ -238,7 +238,11 @@ router.post('/panic/trigger', allow(...COMMAND, 'GUARD'), async (req, res) => {
     lat: z.number().optional().nullable(),
     lng: z.number().optional().nullable(),
     message: z.string().optional().nullable(),
-    type: z.enum(['UMUM', 'KEBAKARAN', 'KECELAKAAN', 'MEDIS', 'KRIMINAL', 'BENCANA']).default('UMUM'),
+    // MAN_DOWN dikirim aplikasi sendiri saat anggota tidak bergerak dan tidak
+    // menjawab pemeriksaan — bukan ditekan orang.
+    type: z
+      .enum(['UMUM', 'KEBAKARAN', 'KECELAKAAN', 'MEDIS', 'KRIMINAL', 'BENCANA', 'MAN_DOWN'])
+      .default('UMUM'),
     /// Dikirim aplikasi bila sinyal sempat mengantre saat tanpa jaringan.
     /// Waktu resmi tetap milik server; kolom ini hanya menerangkan bahwa
     /// catatan menyusul (BRULE-008).
