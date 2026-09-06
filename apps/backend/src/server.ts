@@ -16,6 +16,7 @@ import { redis } from './lib/redis';
 import { mulaiPenjadwalRetensi } from './lib/retention';
 import { mulaiPenjadwalKepatuhan } from './lib/kepatuhan';
 import { wajahDiaktifkan } from './lib/face';
+import { siapkanPush, pushAktif } from './lib/push';
 
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -61,7 +62,15 @@ app.get('/api/health', async (_req, res) => {
         .then((r) => (r.ok ? 'ok' : 'down'))
         .catch(() => 'down')
     : 'nonaktif';
-  res.json({ status: 'ok', service: 'patroli-api', db, cache, face, time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'patroli-api',
+    db,
+    cache,
+    face,
+    push: pushAktif() ? 'ok' : 'nonaktif',
+    time: new Date().toISOString(),
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -110,6 +119,7 @@ initWs(server);
 
 async function bootstrap() {
   await ensureBucket().catch((e) => console.warn('[minio] bucket:', e.message));
+  siapkanPush();
   mulaiPenjadwalRetensi();
   mulaiPenjadwalKepatuhan();
   server.listen(PORT, '0.0.0.0', () => {

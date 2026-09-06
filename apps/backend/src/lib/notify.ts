@@ -1,11 +1,18 @@
 import { prisma } from './prisma';
 import { emitOps, emitUser } from './ws';
 import { WS_EVENTS } from '@patroli/shared';
+import { kirimPush, type KanalPush } from './push';
 
-/** Simpan notifikasi ke DB lalu dorong lewat WebSocket. */
+/**
+ * Simpan notifikasi ke DB, dorong lewat WebSocket, lalu kirim ke ponsel.
+ *
+ * Seluruh pemberitahuan sistem melewati fungsi ini, jadi cukup di sini pula
+ * pengiriman ke ponsel disambungkan — tidak perlu ditambahkan satu per satu
+ * pada setiap kejadian, dan tidak ada kejadian yang terlewat.
+ */
 export async function notifyUsers(
   userIds: string[],
-  n: { type: string; title: string; body: string; data?: any }
+  n: { type: string; title: string; body: string; data?: any; kanal?: KanalPush }
 ) {
   const unique = [...new Set(userIds)].filter(Boolean);
   if (!unique.length) return;
@@ -19,6 +26,24 @@ export async function notifyUsers(
     })),
   });
   for (const id of unique) emitUser(id, WS_EVENTS.NOTIFICATION, n);
+
+  // Pengiriman ke ponsel tidak boleh menahan jawaban permintaan, dan
+  // kegagalannya tidak boleh menggagalkan tindakan yang memicunya.
+  kirimPush(unique, {
+    title: n.title,
+    body: n.body,
+    kanal: n.kanal ?? (n.type === 'PANIC' || n.type === 'DARURAT' ? 'darurat' : 'umum'),
+    data: {
+      type: n.type,
+      ...(n.data && typeof n.data === 'object'
+        ? Object.fromEntries(
+            Object.entries(n.data as Record<string, unknown>)
+              .filter(([, v]) => v !== null && v !== undefined)
+              .map(([k, v]) => [k, String(v)])
+          )
+        : {}),
+    },
+  }).catch((e) => console.warn('[push]', e.message));
 }
 
 /** Notifikasi ke seluruh pengawas: admin, supervisor, super admin. */

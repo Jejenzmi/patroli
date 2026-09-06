@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/dorongan.dart';
 import 'core/sinkron.dart';
 import 'widgets/bilah_luring.dart';
 import 'core/theme.dart';
@@ -39,6 +40,10 @@ void main() async {
   // aplikasi dibuka. Sengaja tidak ditunggu: layar harus tampil lebih dulu,
   // apa pun keadaan penyimpanan dan jaringan.
   unawaited(Sinkron.i.mulai());
+  // Disiapkan sebelum antarmuka berjalan supaya pemberitahuan yang tiba saat
+  // aplikasi tertutup sudah punya kanal dan penanganya.
+  await Dorongan.i.siapkan();
+
   runApp(const PatroliApp());
 }
 

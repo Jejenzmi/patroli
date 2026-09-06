@@ -196,6 +196,45 @@ if "flutter_foreground_task.service" not in src:
     manifest.write_text(src)
 
 
+# ── Firebase Cloud Messaging ──
+#
+# google-services.json memuat pengenal proyek Firebase milik perusahaan dan
+# sengaja tidak ikut ke dalam repo publik. Berkasnya dipasang dari luar saat
+# membangun; bila tidak ada, plugin Google Services tidak dipasang sama sekali
+# supaya build tetap berhasil — aplikasinya hanya kehilangan pemberitahuan
+# dorong, bukan gagal dibangun.
+sumber_gs = pathlib.Path("/kunci/google-services.json")
+tujuan_gs = pathlib.Path("android/app/google-services.json")
+if sumber_gs.exists() and not tujuan_gs.exists():
+    tujuan_gs.write_bytes(sumber_gs.read_bytes())
+    print("▸ google-services.json dipasang dari /kunci")
+
+if tujuan_gs.exists():
+    setelan = pathlib.Path("android/settings.gradle")
+    isi = setelan.read_text()
+    if "com.google.gms.google-services" not in isi:
+        isi = re.sub(
+            r'(id "com\.android\.application" version "[^"]+" apply false)',
+            r'\1\n    id "com.google.gms.google-services" version "4.4.2" apply false',
+            isi,
+            count=1,
+        )
+        setelan.write_text(isi)
+
+    g2 = pathlib.Path("android/app/build.gradle")
+    isi2 = g2.read_text()
+    if "com.google.gms.google-services" not in isi2:
+        isi2 = isi2.replace(
+            '    id "dev.flutter.flutter-gradle-plugin"',
+            '    id "dev.flutter.flutter-gradle-plugin"\n    id "com.google.gms.google-services"',
+            1,
+        )
+        g2.write_text(isi2)
+        print("▸ Plugin Google Services dipasang")
+else:
+    print("▸ google-services.json tidak ada — pemberitahuan dorong tidak ikut dibangun")
+
+
 # Plugin Play In-App Update dikompilasi dengan Kotlin yang lebih baru daripada
 # bawaan templat Flutter 3.24 (1.8.22); tanpa penyetelan ini modulnya gagal
 # dikompilasi. 2.1.0 dipilih karena sudah terbukti pada build lain di server

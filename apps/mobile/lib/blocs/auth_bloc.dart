@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../core/dorongan.dart';
 import '../core/api.dart';
 import '../core/perangkat.dart';
 import '../models/models.dart';
@@ -50,6 +51,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       try {
         final me = await Api.i.get('/auth/me');
         emit(AuthState(status: AuthStatus.authenticated, user: MeUser.fromJson(me)));
+        // Sesi yang dipulihkan juga perlu token terdaftar: token dapat berubah
+        // sendiri saat aplikasi dipasang ulang atau datanya dibersihkan.
+        Dorongan.i.daftarkan();
       } catch (_) {
         // Sesi kedaluwarsa: pakai data tersimpan bila ada, agar tetap bisa dibuka luring.
         final cached = await Session.userJson();
@@ -84,6 +88,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
         await Session.save(r['token'], jsonEncode(user.toJson()));
         emit(AuthState(status: AuthStatus.authenticated, user: user));
+        // Didaftarkan setelah token sesi tersimpan, karena pendaftarannya
+        // sendiri memerlukan sesi yang sah.
+        Dorongan.i.daftarkan();
       } on ApiException catch (err) {
         emit(AuthState(status: AuthStatus.unauthenticated, error: err.message));
       } catch (err) {
@@ -92,6 +99,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<AuthLoggedOut>((e, emit) async {
+      // Ponsel yang sudah bukan miliknya tidak boleh lagi menerima
+      // pemberitahuan tugas orang lain.
+      await Dorongan.i.lepas();
       await Session.clear();
       emit(const AuthState(status: AuthStatus.unauthenticated));
     });

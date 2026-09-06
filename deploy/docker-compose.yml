@@ -82,6 +82,8 @@ services:
       MINIO_BUCKET: patroli
       STORAGE_PUBLIC_URL: /storage
       CORS_ORIGIN: https://dashboard.dharmapati.co.id
+      # Kunci akun layanan Firebase, dipasang dari luar repo.
+      FIREBASE_CREDENTIALS: /kunci/firebase-admin.json
       FACE_SERVICE_URL: http://face:5028
       FACE_THRESHOLD: 0.55
       STORAGE_INTERNAL_URL: http://minio:9000/patroli
@@ -93,6 +95,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 90s
+    volumes:
+      # Hanya-baca: kunci akun layanan tidak ikut ke dalam image maupun repo.
+      - /root/kunci-dharmapati:/kunci:ro
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '5' }
