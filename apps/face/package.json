@@ -9,6 +9,6 @@
     "@tensorflow/tfjs-node": "^4.22.0",
     "@vladmandic/face-api": "^1.7.15",
     "express": "^4.21.1",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^2.3.0"
   }
 }
