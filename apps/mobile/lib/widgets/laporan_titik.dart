@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../core/kamera.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 
@@ -14,7 +14,7 @@ class LaporanTitik {
 
   /// Foto yang belum sempat diunggah karena jaringan mati — ikut diantre
   /// bersama pemindaiannya.
-  final File? foto;
+  final Uint8List? foto;
 
   const LaporanTitik({required this.condition, this.note, this.photoUrl, this.foto});
 }
@@ -38,7 +38,7 @@ Future<LaporanTitik?> mintaLaporanTitik(
   String kondisi = 'AMAN';
   final catatan = TextEditingController();
   String? photoUrl;
-  File? fotoLokal;
+  Uint8List? fotoLokal;
   bool mengunggah = false;
 
   return showModalBottomSheet<LaporanTitik>(
@@ -153,12 +153,11 @@ Future<LaporanTitik?> mintaLaporanTitik(
                 onPressed: mengunggah
                     ? null
                     : () async {
-                        final shot = await ImagePicker()
-                            .pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1280);
-                        if (shot == null) return;
+                        final isi = await Kamera.ambil(keterangan: 'Bukti titik patroli');
+                        if (isi == null) return;
                         setSheet(() => mengunggah = true);
                         try {
-                          final url = await Api.i.upload(File(shot.path), folder: 'patroli');
+                          final url = await Api.i.unggahIsi(isi, folder: 'patroli', nama: 'patroli.jpg');
                           setSheet(() {
                             photoUrl = url;
                             fotoLokal = null;
@@ -167,7 +166,7 @@ Future<LaporanTitik?> mintaLaporanTitik(
                         } catch (_) {
                           // Tanpa jaringan, fotonya ikut mengantre bersama laporan.
                           setSheet(() {
-                            fotoLokal = File(shot.path);
+                            fotoLokal = isi;
                             mengunggah = false;
                           });
                         }

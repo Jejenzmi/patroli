@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../core/kamera.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../blocs/auth_bloc.dart';
@@ -252,13 +252,11 @@ class _AttendanceCard extends StatelessWidget {
   /// Mengambil swafoto presensi. Bila wajah personel sudah didaftarkan, foto
   /// menjadi syarat mutlak karena server mencocokkannya (BRULE-003).
   Future<String?> _swafoto(BuildContext context, {required bool wajib}) async {
-    final shot = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 70,
-      maxWidth: 1280,
+    final isi = await Kamera.ambil(
+      kamera: CameraDevice.front,
+      keterangan: 'Swafoto presensi',
     );
-    if (shot == null) {
+    if (isi == null) {
       if (wajib && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Swafoto wajib diambil karena presensi Anda diverifikasi wajah')),
@@ -267,7 +265,7 @@ class _AttendanceCard extends StatelessWidget {
       return null;
     }
     try {
-      return await Api.i.upload(File(shot.path), folder: 'presensi');
+      return await Api.i.unggahIsi(isi, folder: 'presensi', nama: 'presensi.jpg');
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

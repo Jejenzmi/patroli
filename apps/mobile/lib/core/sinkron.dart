@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -125,10 +126,13 @@ class Sinkron {
     required Map<String, dynamic> isi,
     required String label,
     File? berkas,
+    Uint8List? isiBerkas,
     String? folderBerkas,
     String? kolomBerkas,
   }) async {
-    final salinan = await Antrean.i.simpanBerkas(berkas);
+    final salinan = isiBerkas != null
+        ? await Antrean.i.simpanIsi(isiBerkas)
+        : await Antrean.i.simpanBerkas(berkas);
     await Antrean.i.tambah(
       metode: metode,
       jalur: jalur,

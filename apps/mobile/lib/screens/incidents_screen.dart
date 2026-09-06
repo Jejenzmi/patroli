@@ -1,10 +1,9 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../core/kamera.dart';
 import '../core/api.dart';
 import '../core/geo.dart';
 import '../core/theme.dart';
@@ -382,14 +381,10 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
   }
 
   Future<void> _addPhoto() async {
-    final shot = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      imageQuality: 72,
-      maxWidth: 1600,
-    );
-    if (shot == null) return;
+    final isi = await Kamera.ambil(keterangan: 'Laporan insiden', lebarMaks: 1600, mutu: 72);
+    if (isi == null) return;
     try {
-      final url = await Api.i.upload(File(shot.path), folder: 'insiden');
+      final url = await Api.i.unggahIsi(isi, folder: 'insiden', nama: 'insiden.jpg');
       setState(() => _photos.add(url));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal unggah: $e')));

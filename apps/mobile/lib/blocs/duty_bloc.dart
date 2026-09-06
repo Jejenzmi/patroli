@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -26,13 +26,13 @@ class DutyCheckedIn extends DutyEvent {
   final String? photoUrl;
 
   /// Berkas swafoto yang belum sempat diunggah karena jaringan mati.
-  final File? foto;
+  final Uint8List? foto;
   DutyCheckedIn({required this.siteId, this.scheduleId, this.photoUrl, this.foto});
 }
 
 class DutyCheckedOut extends DutyEvent {
   final String? photoUrl;
-  final File? foto;
+  final Uint8List? foto;
   DutyCheckedOut({this.photoUrl, this.foto});
 }
 
@@ -55,7 +55,7 @@ class DutyCheckpointScanned extends DutyEvent {
   final bool reported;
 
   /// Foto bukti yang belum sempat diunggah karena jaringan mati.
-  final File? foto;
+  final Uint8List? foto;
 
   /// AMAN, PERLU_PERHATIAN, atau BERMASALAH (BRULE-002).
   final String condition;
@@ -256,7 +256,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/schedules/attendance/check-in',
         label: 'Presensi masuk',
-        berkas: e.foto,
+        isiBerkas: e.foto,
         folderBerkas: 'presensi',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {
@@ -299,7 +299,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/schedules/attendance/check-out',
         label: 'Presensi pulang',
-        berkas: e.foto,
+        isiBerkas: e.foto,
         folderBerkas: 'presensi',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {
@@ -349,7 +349,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
       final terkirim = await Api.i.kirimAtauAntre(
         jalur: '/patrols/${e.sessionId}/scan',
         label: 'Pemindaian titik',
-        berkas: e.foto,
+        isiBerkas: e.foto,
         folderBerkas: 'patroli',
         kolomBerkas: e.foto != null ? 'photoUrl' : null,
         isi: {

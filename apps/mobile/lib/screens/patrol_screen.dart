@@ -1,12 +1,11 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../core/kamera.dart';
 import '../core/api.dart';
 import '../core/geo.dart';
 import '../core/theme.dart';
@@ -566,14 +565,10 @@ class _CheckpointTile extends StatelessWidget {
               const SizedBox(height: 14),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final shot = await ImagePicker().pickImage(
-                    source: ImageSource.camera,
-                    imageQuality: 70,
-                    maxWidth: 1600,
-                  );
-                  if (shot == null) return;
+                  final isi = await Kamera.ambil(keterangan: 'Bukti titik patroli', lebarMaks: 1600);
+                  if (isi == null) return;
                   try {
-                    final url = await Api.i.upload(File(shot.path), folder: 'patroli');
+                    final url = await Api.i.unggahIsi(isi, folder: 'patroli', nama: 'patroli.jpg');
                     setSheet(() => photoUrl = url);
                   } catch (e) {
                     if (sheetCtx.mounted) {

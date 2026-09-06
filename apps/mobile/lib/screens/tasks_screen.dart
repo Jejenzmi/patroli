@@ -1,9 +1,8 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../core/kamera.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/app_dialog.dart';
@@ -393,11 +392,10 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
                     )),
                 GestureDetector(
                   onTap: () async {
-                    final shot = await ImagePicker()
-                        .pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1600);
-                    if (shot == null) return;
+                    final isi = await Kamera.ambil(keterangan: 'Bukti penyelesaian tugas', lebarMaks: 1600);
+                    if (isi == null) return;
                     try {
-                      final url = await Api.i.upload(File(shot.path), folder: 'tugas');
+                      final url = await Api.i.unggahIsi(isi, folder: 'tugas', nama: 'tugas.jpg');
                       setSheet(() => bukti.add(url));
                     } catch (e) {
                       if (ctx.mounted) {

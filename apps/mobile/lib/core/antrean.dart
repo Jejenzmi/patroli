@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -122,6 +123,24 @@ class Antrean {
       return salinan.path;
     } catch (_) {
       return sumber.path;
+    }
+  }
+
+  /// Menulis foto dari memori ke ruang privat aplikasi.
+  ///
+  /// Hanya dipakai saat tidak ada jaringan: foto bukti tidak boleh hilang
+  /// hanya karena sinyal sedang mati. Berkasnya dihapus begitu kiriman
+  /// berhasil, dan tidak pernah masuk galeri ponsel.
+  Future<String?> simpanIsi(Uint8List isi) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final tujuan = Directory(p.join(dir.path, 'antrean'));
+      if (!await tujuan.exists()) await tujuan.create(recursive: true);
+      final berkas = File(p.join(tujuan.path, '${DateTime.now().microsecondsSinceEpoch}.jpg'));
+      await berkas.writeAsBytes(isi, flush: true);
+      return berkas.path;
+    } catch (_) {
+      return null;
     }
   }
 

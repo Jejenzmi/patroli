@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -101,14 +102,17 @@ class Api {
     required String label,
     String metode = 'POST',
     File? berkas,
+    Uint8List? isiBerkas,
     String? folderBerkas,
     String? kolomBerkas,
   }) async {
     final muatan = Map<String, dynamic>.from(isi)
       ..putIfAbsent('offlineAt', () => DateTime.now().toIso8601String());
     try {
-      if (berkas != null && kolomBerkas != null) {
-        final url = await upload(berkas, folder: folderBerkas ?? 'antrean');
+      if ((berkas != null || isiBerkas != null) && kolomBerkas != null) {
+        final url = isiBerkas != null
+            ? await unggahIsi(isiBerkas, folder: folderBerkas ?? 'antrean')
+            : await upload(berkas!, folder: folderBerkas ?? 'antrean');
         if (kolomBerkas.endsWith('[]')) {
           final kunci = kolomBerkas.substring(0, kolomBerkas.length - 2);
           muatan[kunci] = [...List<String>.from(muatan[kunci] as List? ?? const []), url];
@@ -124,12 +128,16 @@ class Api {
       return true;
     } on ApiException catch (e) {
       if (e.status != 0) rethrow; // Ditolak server — bukan urusan jaringan.
+      // Tidak ada jaringan: isinya harus tersimpan sampai terkirim. Ditulis
+      // ke ruang privat aplikasi — bukan galeri — lalu dihapus setelah
+      // pengiriman berhasil.
       await Sinkron.i.antre(
         metode: metode,
         jalur: jalur,
         isi: muatan,
         label: label,
         berkas: berkas,
+        isiBerkas: isiBerkas,
         folderBerkas: folderBerkas,
         kolomBerkas: kolomBerkas,
       );
@@ -145,6 +153,24 @@ class Api {
     final form = FormData.fromMap({
       'folder': folder,
       'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+    });
+    final r = await _unwrap(dio.post('/uploads', data: form));
+    return r['url'] as String;
+  }
+
+  /// Mengunggah gambar langsung dari memori.
+  ///
+  /// Dipakai foto bukti dari kamera: isinya tidak pernah ditulis ke
+  /// penyimpanan ponsel, jadi tidak ada yang tertinggal bila pengiriman
+  /// berhasil.
+  Future<String> unggahIsi(
+    Uint8List isi, {
+    String folder = 'mobile',
+    String nama = 'bukti.jpg',
+  }) async {
+    final form = FormData.fromMap({
+      'folder': folder,
+      'file': MultipartFile.fromBytes(isi, filename: nama),
     });
     final r = await _unwrap(dio.post('/uploads', data: form));
     return r['url'] as String;
