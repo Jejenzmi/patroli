@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { startOfDay, endOfDay, dayjs, TZ } from './time';
+import { startOfDay, endOfDay, dateKey } from './time';
 
 /**
  * Laporan harian per personel.
@@ -63,7 +63,10 @@ export async function laporanHarian(
 ): Promise<HasilHarian> {
   const awal = startOfDay(new Date(tanggal));
   const akhir = endOfDay(new Date(tanggal));
-  const kunci = dayjs(awal).tz(TZ).startOf('day').toDate();
+  // Schedule.date disimpan sebagai UTC-midnight lewat dateKey(); memakai
+  // startOfDay() di sini membuat kuncinya meleset tujuh jam sehingga roster
+  // tidak pernah ketemu — dan personel yang tidak hadir jadi tak terlihat.
+  const kunci = dateKey(tanggal);
 
   const batasSite = siteIds ? { in: siteIds.length ? siteIds : ['-'] } : undefined;
 

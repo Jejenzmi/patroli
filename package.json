@@ -14,5 +14,10 @@
     "db:push": "npm run db:push --workspace=@patroli/backend",
     "db:seed": "npm run seed --workspace=@patroli/backend"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
+  }
 }

@@ -92,6 +92,10 @@ const scanSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   photoUrl: z.string().optional().nullable(),
+  /// Ditandai aplikasi bila laporan titik sudah diisi bersamaan dengan
+  /// pemindaian. Kondisi "aman" boleh tanpa catatan, jadi keberadaan catatan
+  /// tidak dapat dipakai sebagai penanda sudah-dilaporkan.
+  reported: z.boolean().optional(),
   note: z.string().optional().nullable(),
   condition: z.enum(['AMAN', 'PERLU_PERHATIAN', 'BERMASALAH']).default('AMAN'),
 });
@@ -211,9 +215,10 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       distanceFlag,
       orderIndex: link.orderIndex,
       offlineAt: p.data.offlineAt ? new Date(p.data.offlineAt) : null,
-      // Bila catatan sudah ikut terkirim bersama pemindaian, laporannya
-      // dianggap selesai saat itu juga; selebihnya menunggu diisi.
-      reportedAt: !session.route.requireReport || p.data.note ? new Date() : null,
+      // Laporan dianggap selesai bila aplikasi menandainya, atau bila catatan
+      // ikut terkirim (aplikasi versi lama yang belum mengirim penanda).
+      reportedAt:
+        !session.route.requireReport || p.data.reported || p.data.note ? new Date() : null,
     },
     include: { checkpoint: true },
   });

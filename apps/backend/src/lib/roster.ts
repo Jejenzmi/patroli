@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import { dayjs, TZ, dateKey } from './time';
 import { haversineMeters } from '@patroli/shared';
-import { alasanTidakBolehBertugas } from './kepatuhan';
+import { DOKUMEN_WAJIB, blokirBerkasMati } from './kepatuhan';
 
 /**
  * Pagar jam kerja dan mesin pencari pengganti.
@@ -52,30 +52,24 @@ export interface PelanggaranKelelahan {
  * Memeriksa apakah menambahkan satu penugasan melanggar pagar jam kerja.
  * Mengembalikan daftar pelanggaran; kosong berarti aman.
  */
-export async function periksaKelelahan(
-  guardId: string,
-  shiftId: string,
+export interface JadwalRingkas {
+  date: Date;
+  shift: { startTime: string; endTime: string; crossesMidnight: boolean };
+}
+
+/**
+ * Inti penilaian, tanpa menyentuh basis data.
+ *
+ * Dipisah supaya pencarian calon pengganti dapat menilai puluhan orang dari
+ * satu kali pengambilan jadwal, bukan dua kueri per orang.
+ */
+export function nilaiKelelahan(
+  jadwal: JadwalRingkas[],
+  shift: { startTime: string; endTime: string; crossesMidnight: boolean },
   tanggal: Date,
-  konfig?: KonfigKelelahan
-): Promise<PelanggaranKelelahan[]> {
-  const k = konfig ?? (await konfigKelelahan());
+  k: KonfigKelelahan
+): PelanggaranKelelahan[] {
   const hasil: PelanggaranKelelahan[] = [];
-
-  const awal = dayjs(tanggal).subtract(k.maksHariBerturut + 1, 'day').toDate();
-  const akhir = dayjs(tanggal).add(k.maksHariBerturut + 1, 'day').toDate();
-
-  const [jadwal, shift] = await Promise.all([
-    prisma.schedule.findMany({
-      where: { guardId, date: { gte: awal, lte: akhir }, status: { not: 'SWAPPED' } },
-      include: { shift: { select: { startTime: true, endTime: true, crossesMidnight: true } } },
-      orderBy: { date: 'asc' },
-    }),
-    prisma.shift.findUnique({
-      where: { id: shiftId },
-      select: { startTime: true, endTime: true, crossesMidnight: true },
-    }),
-  ]);
-  if (!shift) return hasil;
 
   const kunci = dayjs(tanggal).format('YYYY-MM-DD');
   const terpakai = new Set(jadwal.map((j) => dayjs(j.date).format('YYYY-MM-DD')));
@@ -139,6 +133,36 @@ export async function periksaKelelahan(
   return hasil;
 }
 
+/** Memeriksa satu rencana penugasan; mengambil sendiri data yang diperlukan. */
+export async function periksaKelelahan(
+  guardId: string,
+  shiftId: string,
+  tanggal: Date,
+  konfig?: KonfigKelelahan
+): Promise<PelanggaranKelelahan[]> {
+  const k = konfig ?? (await konfigKelelahan());
+  const [jadwal, shift] = await Promise.all([
+    prisma.schedule.findMany({
+      where: {
+        guardId,
+        date: {
+          gte: dayjs(tanggal).subtract(k.maksHariBerturut + 1, 'day').toDate(),
+          lte: dayjs(tanggal).add(k.maksHariBerturut + 1, 'day').toDate(),
+        },
+        status: { not: 'SWAPPED' },
+      },
+      include: { shift: { select: { startTime: true, endTime: true, crossesMidnight: true } } },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.shift.findUnique({
+      where: { id: shiftId },
+      select: { startTime: true, endTime: true, crossesMidnight: true },
+    }),
+  ]);
+  if (!shift) return [];
+  return nilaiKelelahan(jadwal, shift, tanggal, k);
+}
+
 export interface Calon {
   guardId: string;
   name: string;
@@ -185,7 +209,12 @@ export async function calonPengganti(
   const sudahDijadwalkan = new Set(jadwalHariItu.map((j) => j.guardId));
   const ids = kandidat.map((c) => c.id);
 
-  const [cuti, berkas, riwayat, bebanPekan] = await Promise.all([
+  const shift = await prisma.shift.findUnique({
+    where: { id: shiftId },
+    select: { startTime: true, endTime: true, crossesMidnight: true },
+  });
+
+  const [cuti, berkas, riwayat, bebanPekan, berkasWajib, jadwalSekitar] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: {
         userId: { in: ids },
@@ -222,6 +251,28 @@ export async function calonPengganti(
       },
       _count: { _all: true },
     }),
+    // Berkas wajib seluruh calon diambil sekali; menanyakannya satu per satu
+    // membuat pencarian calon menembak basis data ratusan kali.
+    prisma.personnelDocument.findMany({
+      where: { guardId: { in: ids }, type: { in: DOKUMEN_WAJIB as unknown as any[] } },
+      select: { guardId: true, type: true, expiresAt: true },
+    }),
+    prisma.schedule.findMany({
+      where: {
+        guardId: { in: ids },
+        date: {
+          gte: dayjs(tanggal).subtract(k.maksHariBerturut + 1, 'day').toDate(),
+          lte: dayjs(tanggal).add(k.maksHariBerturut + 1, 'day').toDate(),
+        },
+        status: { not: 'SWAPPED' },
+      },
+      select: {
+        guardId: true,
+        date: true,
+        shift: { select: { startTime: true, endTime: true, crossesMidnight: true } },
+      },
+      orderBy: { date: 'asc' },
+    }),
   ]);
 
   const sedangCuti = new Set(cuti.map((c) => c.userId));
@@ -230,13 +281,27 @@ export async function calonPengganti(
   const pernahDiSite = new Map(riwayat.map((r) => [r.guardId, r._count._all]));
   const beban = new Map(bebanPekan.map((b) => [b.guardId, b._count._all]));
 
+  // Berkas wajib yang sudah mati menggugurkan calon — dihitung dari satu
+  // pengambilan data, bukan satu kueri per orang.
+  const sekarang = new Date();
+  const berkasMati = new Set(
+    berkasWajib.filter((b) => b.expiresAt && b.expiresAt < sekarang).map((b) => b.guardId)
+  );
+  const tegakkanBerkas = await blokirBerkasMati();
+
+  const jadwalPer = new Map<string, JadwalRingkas[]>();
+  jadwalSekitar.forEach((j) =>
+    jadwalPer.set(j.guardId, [...(jadwalPer.get(j.guardId) || []), { date: j.date, shift: j.shift }])
+  );
+
   const hasil: Calon[] = [];
 
   for (const c of kandidat) {
     if (sudahDijadwalkan.has(c.id) || sedangCuti.has(c.id)) continue;
-    // Berkas wajib mati atau daftar hitam langsung menggugurkan.
-    if (await alasanTidakBolehBertugas(c.id)) continue;
-    const pelanggaran = await periksaKelelahan(c.id, shiftId, tanggal, k);
+    if (tegakkanBerkas && berkasMati.has(c.id)) continue;
+    const pelanggaran = shift
+      ? nilaiKelelahan(jadwalPer.get(c.id) || [], shift, tanggal, k)
+      : [];
     if (pelanggaran.length && k.tegakkan) continue;
 
     const reasons: { faktor: string; nilai: number; catatan: string }[] = [];

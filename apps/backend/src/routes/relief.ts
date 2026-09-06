@@ -40,6 +40,13 @@ router.get('/pos-kosong', allow(...COMMAND, 'CLIENT'), async (req, res) => {
 
   const hasil = await posKosong(tanggal, siteId);
   if (boleh !== null) hasil.baris = hasil.baris.filter((b) => boleh.includes(b.siteId));
+
+  // Nilai potongan tagihan adalah angka komersial: administrator perlu
+  // melihatnya, klien berhak melihatnya, komandan regu tidak.
+  if (!ADMIN_ONLY.includes(req.user!.role) && req.user!.role !== 'CLIENT') {
+    hasil.potonganHariIni = 0;
+    hasil.baris = hasil.baris.map(({ potongan, ...b }) => ({ ...b, potongan: 0 }));
+  }
   res.json(hasil);
 });
 

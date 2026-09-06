@@ -51,7 +51,10 @@ router.get('/documents/saya', async (req, res) => {
   res.json(rows.map((r) => ({ ...r, label: LABEL_DOKUMEN[r.type] || r.type })));
 });
 
-router.get('/documents', allow(...COMMAND, 'CLIENT'), async (req, res) => {
+// Berkas personel memuat data pribadi — nomor KTA, SKCK, sampai hasil
+// pemeriksaan kesehatan. Pemberi kerja site tidak berkepentingan melihatnya;
+// yang mereka butuhkan cukup pemenuhan syarat kompetensi di /requirements.
+router.get('/documents', allow(...COMMAND), async (req, res) => {
   const boleh = await allowedSiteIds(req);
   const where: any = {
     ...(req.query.guardId ? { guardId: String(req.query.guardId) } : {}),

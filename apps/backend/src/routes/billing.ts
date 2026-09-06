@@ -56,10 +56,17 @@ router.get('/contracts', allow(...COMMAND, 'CLIENT'), async (req, res) => {
     },
     orderBy: { endDate: 'asc' },
   });
+  // Supervisor perlu tahu susunan pos untuk menyusun roster, tetapi tarif dan
+  // nilai kontrak adalah urusan komersial — angkanya tidak ikut dikirim.
+  const komersial = KELOLA.includes(req.user!.role) || req.user!.role === 'CLIENT';
+
   res.json(
     rows.map((c) => ({
       ...c,
-      nilaiBulanan: rp(c.posts.reduce((a, p) => a + p.headcount * p.ratePerPerson, 0)),
+      posts: komersial ? c.posts : c.posts.map(({ ratePerPerson, ...p }) => p),
+      ...(komersial
+        ? { nilaiBulanan: rp(c.posts.reduce((a, p) => a + p.headcount * p.ratePerPerson, 0)) }
+        : {}),
       totalPos: c.posts.reduce((a, p) => a + p.headcount, 0),
       sisaHari: dayjs(c.endDate).diff(dayjs(), 'day'),
     }))
@@ -80,9 +87,16 @@ router.get('/contracts/:id', allow(...COMMAND, 'CLIENT'), async (req, res) => {
     },
   });
   if (!c) return res.status(404).json({ message: 'Kontrak tidak ditemukan' });
+
+  const komersial = KELOLA.includes(req.user!.role) || req.user!.role === 'CLIENT';
   res.json({
     ...c,
-    nilaiBulanan: rp(c.posts.reduce((a, p) => a + p.headcount * p.ratePerPerson, 0)),
+    posts: komersial ? c.posts : c.posts.map(({ ratePerPerson, grade, ...p }) => p),
+    penalties: komersial ? c.penalties : [],
+    invoices: komersial ? c.invoices : [],
+    ...(komersial
+      ? { nilaiBulanan: rp(c.posts.reduce((a, p) => a + p.headcount * p.ratePerPerson, 0)) }
+      : {}),
     totalPos: c.posts.reduce((a, p) => a + p.headcount, 0),
   });
 });
@@ -123,7 +137,7 @@ router.delete('/contracts/:id', allow(...KELOLA), async (req, res) => {
 });
 
 /** Kontrak yang mendekati berakhir — pengingat perpanjangan. */
-router.get('/contracts-jatuh-tempo', allow(...COMMAND), async (req, res) => {
+router.get('/contracts-jatuh-tempo', allow(...KELOLA), async (req, res) => {
   const hari = Math.min(365, Number(req.query.hari) || 90);
   const rows = await prisma.contract.findMany({
     where: { status: 'AKTIF', endDate: { lte: dayjs().add(hari, 'day').toDate() } },
@@ -480,8 +494,8 @@ router.delete('/pembayaran/:id', allow(...KELOLA), async (req, res) => {
   res.json(await segarkanTotal(bayar.invoiceId));
 });
 
-/** Umur piutang — berapa lama tagihan menganggur. */
-router.get('/piutang', allow(...COMMAND), async (_req, res) => {
+/** Umur piutang — berapa lama tagihan menganggur. Hanya untuk keuangan. */
+router.get('/piutang', allow(...KELOLA), async (_req, res) => {
   const rows = await prisma.invoice.findMany({
     where: { status: { in: ['TERKIRIM', 'SEBAGIAN'] } },
     include: { client: { select: { name: true } }, contract: { select: { number: true, pph23Dipotong: true } } },

@@ -49,6 +49,10 @@ class DutyCheckpointScanned extends DutyEvent {
   final String? note;
   final String? photoUrl;
 
+  /// Laporan titik sudah diisi anggota lewat lembar wajib. Dikirim apa adanya
+  /// karena kondisi "aman" boleh tanpa catatan.
+  final bool reported;
+
   /// Foto bukti yang belum sempat diunggah karena jaringan mati.
   final File? foto;
 
@@ -63,6 +67,7 @@ class DutyCheckpointScanned extends DutyEvent {
     this.photoUrl,
     this.foto,
     this.condition = 'AMAN',
+    this.reported = false,
   });
 }
 
@@ -342,6 +347,7 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
           'note': e.note,
           if (e.photoUrl != null) 'photoUrl': e.photoUrl,
           'condition': e.condition,
+          'reported': e.reported,
         },
       );
       if (p.palsu && !terkirim) {

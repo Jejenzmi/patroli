@@ -80,6 +80,7 @@ class _ShellScreenState extends State<ShellScreen> {
             note: laporan.note,
             photoUrl: laporan.photoUrl,
             foto: laporan.foto,
+            reported: true,
           ),
         );
   }

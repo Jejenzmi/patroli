@@ -81,7 +81,14 @@ app.use('/api/compliance', complianceRoutes);
 app.use('/api/relief', reliefRoutes);
 // Tiruan papan relai sirene untuk peragaan dan pengujian; perangkat asli
 // berada di jaringan lokal klien dan dipanggil lewat alamatnya sendiri.
-app.use('/api/alarm-sim', alarmSimRoutes);
+//
+// Tidak dipasang secara bawaan: endpoint ini tidak menuntut login dan hanya
+// dijaga satu token, yang nilai bawaannya tercantum di repo. Instans produksi
+// membiarkannya mati kecuali memang sedang memperagakan sirene.
+if (process.env.ALARM_SIM_TOKEN && process.env.ALARM_SIM_TOKEN !== 'sirene-uji') {
+  app.use('/api/alarm-sim', alarmSimRoutes);
+  console.log('▸ Tiruan papan relai sirene aktif');
+}
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
 

@@ -19,7 +19,7 @@ class LaporanTitik {
   const LaporanTitik({required this.condition, this.note, this.photoUrl, this.foto});
 }
 
-const _PILIHAN = [
+const _pilihan = [
   ('AMAN', 'Aman', 'Tidak ada temuan', Icons.verified_outlined, P.emerald),
   ('PERLU_PERHATIAN', 'Perlu perhatian', 'Ada yang perlu ditindaklanjuti', Icons.error_outline, P.amber),
   ('BERMASALAH', 'Bermasalah', 'Perlu penanganan segera', Icons.report_gmailerrorred_outlined, P.danger),
@@ -88,7 +88,7 @@ Future<LaporanTitik?> mintaLaporanTitik(
               ),
               const SizedBox(height: 18),
 
-              ..._PILIHAN.map((o) {
+              ..._pilihan.map((o) {
                 final aktif = kondisi == o.$1;
                 return GestureDetector(
                   onTap: () => setSheet(() => kondisi = o.$1),

@@ -615,14 +615,18 @@ class _CheckpointTile extends StatelessWidget {
                     );
                     if (!setuju) return;
                     if (!sheetCtx.mounted) return;
+                    // Bloc diambil sebelum lembar ditutup: memakai context
+                    // setelah await berisiko menyentuh widget yang sudah lepas.
+                    final bloc = context.read<DutyBloc>();
                     Navigator.pop(sheetCtx);
-                    context.read<DutyBloc>().add(DutyCheckpointScanned(
+                    bloc.add(DutyCheckpointScanned(
                           sessionId: sessionId,
                           checkpointId: cp.id,
                           method: 'GPS',
                           note: note.text.trim().isEmpty ? null : note.text.trim(),
                           photoUrl: photoUrl,
                           condition: kondisi,
+                          reported: true,
                         ));
                   },
                   icon: const Icon(Icons.my_location, size: 18),

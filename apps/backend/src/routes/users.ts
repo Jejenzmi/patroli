@@ -123,9 +123,42 @@ router.put('/:id', allow(...ADMIN_ONLY), async (req, res) => {
   res.json(safe);
 });
 
+/**
+ * Menonaktifkan personel.
+ *
+ * Bawaannya sengaja tidak menghapus baris: presensi, patroli, dan insiden
+ * yang pernah dicatat orang itu harus tetap dapat ditelusuri. Penghapusan
+ * permanen hanya disediakan untuk akun yang salah dibuat — dan hanya bila
+ * belum meninggalkan jejak operasional apa pun.
+ */
 router.delete('/:id', allow(...ADMIN_ONLY), async (req, res) => {
   if (req.params.id === req.user!.sub)
     return res.status(400).json({ message: 'Tidak bisa menghapus akun sendiri' });
+
+  if (req.query.permanen === 'true') {
+    if (req.user!.role !== 'SUPER_ADMIN')
+      return res.status(403).json({ message: 'Penghapusan permanen hanya untuk super admin' });
+
+    const [presensi, patroli, insiden, jadwal, slip] = await Promise.all([
+      prisma.attendance.count({ where: { guardId: req.params.id } }),
+      prisma.patrolSession.count({ where: { guardId: req.params.id } }),
+      prisma.incident.count({ where: { reporterId: req.params.id } }),
+      prisma.schedule.count({ where: { guardId: req.params.id } }),
+      prisma.payslip.count({ where: { guardId: req.params.id } }),
+    ]);
+    const jejak = presensi + patroli + insiden + jadwal + slip;
+    if (jejak)
+      return res.status(409).json({
+        message:
+          `Akun ini sudah punya ${jejak} catatan operasional dan tidak dapat dihapus permanen. ` +
+          'Nonaktifkan saja agar riwayatnya tetap utuh.',
+      });
+
+    await prisma.user.delete({ where: { id: req.params.id } });
+    await audit(req.user!.sub, 'DELETE', 'User', req.params.id, { permanen: true }, req.ip);
+    return res.json({ message: 'Akun dihapus permanen' });
+  }
+
   await prisma.user.update({ where: { id: req.params.id }, data: { status: 'RESIGNED' } });
   await audit(req.user!.sub, 'DEACTIVATE', 'User', req.params.id, null, req.ip);
   res.json({ message: 'Personel dinonaktifkan' });
