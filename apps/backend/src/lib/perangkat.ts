@@ -40,6 +40,14 @@ export async function periksaPerangkat(
   // mulai berlaku begitu petugas memakai versi yang mengirimkannya.
   if (!deviceId) return { ok: true };
 
+  // Akun peragaan dipakai bergantian dari beberapa perangkat oleh peninjau
+  // Google Play, jadi tidak diikat ke satu ponsel.
+  const pengguna = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isDemo: true },
+  });
+  if (pengguna?.isDemo) return { ok: true };
+
   const terdaftar = await prisma.userDevice.findMany({ where: { userId } });
   const cocok = terdaftar.find((d) => d.deviceId === deviceId);
 

@@ -186,7 +186,14 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       haversineMeters(p.data.lat, p.data.lng, link.checkpoint.lat, link.checkpoint.lng)
     );
     const tolerance = link.checkpoint.radiusM;
-    if (p.data.method === 'GPS' && distanceM > tolerance)
+    // Peninjau Google Play tidak memegang stiker QR titik patroli, jadi satu-
+    // satunya jalan baginya adalah verifikasi GPS — yang pasti gagal karena ia
+    // berada jauh dari site. Jaraknya tetap dicatat apa adanya.
+    const peragaan = await prisma.user.findUnique({
+      where: { id: req.user!.sub },
+      select: { isDemo: true },
+    });
+    if (p.data.method === 'GPS' && distanceM > tolerance && !peragaan?.isDemo)
       return res.status(422).json({
         message: `Terlalu jauh dari titik (${distanceM} m, batas ${tolerance} m).`,
         distanceM,

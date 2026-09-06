@@ -102,6 +102,17 @@ export async function periksaLokasi(opsi: {
 }): Promise<{ ditolak: boolean; type?: string; pesan?: string; speedKph?: number }> {
   const { userId, lat, lng } = opsi;
 
+  // Akun peragaan untuk peninjau Google Play dikecualikan. Peninjau bekerja
+  // dari emulator dengan penyedia lokasi tiruan, sehingga tanpa kelonggaran
+  // ini seluruh fungsi lapangan tertutup baginya dan aplikasi tampak rusak.
+  // Kelonggaran hanya berlaku bagi akun yang ditandai `isDemo`, dan akun itu
+  // hanya dapat dibuat lewat seed peragaan.
+  const pengguna = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isDemo: true },
+  });
+  if (pengguna?.isDemo) return { ditolak: false };
+
   // ── Lapis pertama: tanda dari sistem operasi ──
   if (opsi.mocked) {
     await catatPelanggaran({

@@ -257,6 +257,15 @@ model User {
   bpjsKesNo       String?
   resignedAt      DateTime?
 
+  /// Akun peragaan untuk peninjau Google Play.
+  ///
+  /// Peninjau bekerja dari emulator di negara lain, sehingga pengikatan
+  /// perangkat, penolakan lokasi tiruan, dan geofence presensi pasti
+  /// menghadangnya dan aplikasi tampak rusak saat ditinjau. Penanda ini
+  /// melonggarkan ketiganya khusus akun peragaan; presensinya tetap dicatat
+  /// apa adanya, termasuk jarak sebenarnya dari pos.
+  isDemo          Boolean     @default(false)
+
   /// Personel yang tidak boleh dipekerjakan lagi — dicegah saat penjadwalan
   blacklisted     Boolean     @default(false)
   blacklistReason String?

@@ -22,5 +22,14 @@ npx tsx apps/backend/prisma/seed-wilayah.ts || echo "  (seed wilayah dilewati)"
 echo "▸ Menyiapkan data keuangan…"
 npx tsx apps/backend/prisma/seed-keuangan.ts || echo "  (seed keuangan dilewati)"
 
+# Akun dan data peragaan untuk peninjau Google Play. Dijalankan tiap layanan
+# hidup supaya rosternya selalu mencakup hari berjalan — peninjauan bisa datang
+# berminggu-minggu setelah unggahan, dan layar jadwal yang kosong membuat
+# aplikasi tampak tidak berfungsi.
+if [ "$SEED_PERAGAAN" != "false" ]; then
+  echo "▸ Menyegarkan data peragaan…"
+  npx tsx apps/backend/prisma/seed-peragaan.ts || echo "  (seed peragaan dilewati)"
+fi
+
 echo "▸ Menjalankan API…"
 exec node apps/backend/dist/server.js

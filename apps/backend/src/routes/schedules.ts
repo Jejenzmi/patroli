@@ -261,7 +261,15 @@ router.post('/attendance/check-in', allow(...COMMAND, 'GUARD'), async (req, res)
     return res.status(422).json({ message: periksa.pesan, code: periksa.type });
   }
 
-  if (distance > site.radiusM) {
+  // Akun peragaan untuk peninjau Google Play tidak berada di lokasi site mana
+  // pun; jaraknya tetap dicatat apa adanya, hanya penolakannya yang tidak
+  // diberlakukan.
+  const peragaan = await prisma.user.findUnique({
+    where: { id: guardId },
+    select: { isDemo: true },
+  });
+
+  if (distance > site.radiusM && !peragaan?.isDemo) {
     const pesan = `Anda berada ${distance} m dari pos (batas ${site.radiusM} m). Presensi harus dilakukan di area site.`;
     await catatGagal('DILUAR_RADIUS', pesan);
     return res.status(422).json({ message: pesan, distanceM: distance });

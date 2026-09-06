@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -166,35 +167,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )),
 
             const SizedBox(height: 20),
-            GlassCard(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: P.cyan.withOpacity(.13),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: P.cyan.withOpacity(.3)),
-                    ),
-                    child: const Icon(Icons.menu_book_outlined, color: P.cyan, size: 20),
-                  ),
-                  const SizedBox(width: 13),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Panduan Penggunaan',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-                        SizedBox(height: 2),
-                        Text('Buka di peramban: dashboard.dharmapati.co.id',
-                            style: TextStyle(color: P.muted, fontSize: 11.5)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            _KartuTautan(
+              ikon: Icons.menu_book_outlined,
+              warna: P.cyan,
+              judul: 'Panduan Penggunaan',
+              tautan: 'dashboard.dharmapati.co.id/Panduan-Penggunaan-PATROLI.pdf',
+            ),
+            const SizedBox(height: 10),
+            _KartuTautan(
+              ikon: Icons.privacy_tip_outlined,
+              warna: P.amber,
+              judul: 'Kebijakan Privasi',
+              tautan: 'dharmapati.co.id/kebijakan-privasi',
             ),
 
             const SizedBox(height: 24),
@@ -220,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
             const Center(
-              child: Text('DHARMAPATI Field App · v1.5.1',
+              child: Text('DHARMAPATI Field App · v1.6.0',
                   style: TextStyle(color: P.muted, fontSize: 11)),
             ),
           ]))],
@@ -258,6 +242,70 @@ class _MiniStat extends StatelessWidget {
             Text(label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: P.muted, fontSize: 10.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Kartu alamat yang menyalin tautannya ke papan klip saat ditekan.
+///
+/// Sengaja tidak membuka peramban lewat pustaka tambahan: satu ketukan untuk
+/// menyalin sudah cukup, dan aplikasi tidak perlu izin membuka aplikasi lain.
+class _KartuTautan extends StatelessWidget {
+  const _KartuTautan({
+    required this.ikon,
+    required this.warna,
+    required this.judul,
+    required this.tautan,
+  });
+
+  final IconData ikon;
+  final Color warna;
+  final String judul;
+  final String tautan;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: 'https://$tautan'));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Alamat $judul disalin — tempel di peramban'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: warna.withOpacity(.13),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: warna.withOpacity(.3)),
+              ),
+              child: Icon(ikon, color: warna, size: 20),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(judul, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(tautan, style: const TextStyle(color: P.muted, fontSize: 11.5)),
+                ],
+              ),
+            ),
+            const Icon(Icons.copy_rounded, color: P.muted, size: 16),
           ],
         ),
       ),
