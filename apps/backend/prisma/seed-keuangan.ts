@@ -274,13 +274,19 @@ async function main() {
   await seedUmk(tahun);
   await seedLibur(tahun);
 
-  // Golongan upah dan kontrak adalah contoh: nilainya karangan dan hanya
-  // berguna untuk peragaan. Instans produksi mengisinya sendiri.
+  // Golongan upah ikut dipasang di produksi sebagai titik awal yang dapat
+  // disunting: tanpa satu pun golongan, mesin penggajian melewati seluruh
+  // personel dan menghasilkan nol slip — modulnya tampak rusak padahal hanya
+  // belum berisi. Gaji pokoknya memakai UMK yang berlaku, bukan angka karangan;
+  // tunjangan dan potongan tinggal disesuaikan perusahaan.
+  await seedGolongan();
+
+  // Kontrak sebaliknya: nilainya milik perjanjian nyata dengan pengguna jasa
+  // dan tidak boleh dikarang. Hanya dipasang untuk peragaan.
   if (process.env.SEED_DEMO === 'true') {
-    await seedGolongan();
     await seedKontrak();
   } else {
-    console.log('  · golongan upah & kontrak dilewati (bukan peragaan)');
+    console.log('  · kontrak dilewati — diisi sendiri sesuai perjanjian');
   }
   console.log('▸ selesai');
 }

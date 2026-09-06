@@ -22,6 +22,12 @@ npx tsx apps/backend/prisma/seed-wilayah.ts || echo "  (seed wilayah dilewati)"
 echo "▸ Menyiapkan data keuangan…"
 npx tsx apps/backend/prisma/seed-keuangan.ts || echo "  (seed keuangan dilewati)"
 
+# Divisi penanggap darurat dan aturan peruteannya. Tanpa ini sinyal darurat
+# hanya sampai ke pengawas, padahal layar daruratnya menjanjikan divisi
+# penanggap ikut menerima.
+echo "▸ Menyiapkan divisi & perutean darurat…"
+npx tsx apps/backend/prisma/seed-darurat.ts || echo "  (seed darurat dilewati)"
+
 # Akun dan data peragaan untuk peninjau Google Play. Dijalankan tiap layanan
 # hidup supaya rosternya selalu mencakup hari berjalan — peninjauan bisa datang
 # berminggu-minggu setelah unggahan, dan layar jadwal yang kosong membuat

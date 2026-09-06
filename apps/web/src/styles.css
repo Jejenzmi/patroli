@@ -157,3 +157,104 @@
 .marker-guard {
   filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.8));
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CETAK
+
+   Dasbor gelap beserta menu sampingnya tidak pantas menjadi dokumen resmi.
+   Saat dicetak, seluruh kerangka aplikasi disembunyikan dan yang tersisa
+   hanya blok `.lembar-cetak` di atas kertas putih.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.hanya-cetak {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 13mm 16mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* Kerangka aplikasi: bilah samping, kepala, tombol, dan panel layar. */
+  aside,
+  header,
+  .tanpa-cetak {
+    display: none !important;
+  }
+
+  main {
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  main > div {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  .hanya-cetak {
+    display: block !important;
+  }
+
+  /* Halaman selain lembar tagihan tetap memakai komponen layar. Warnanya
+     dipaksa gelap di atas putih supaya terbaca; tanpa ini teks abu muda tema
+     gelap nyaris tak terlihat di kertas. */
+  main,
+  main * {
+    color: #111 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-color: #b9c0cc !important;
+  }
+
+  main table th,
+  main table td {
+    border: 1px solid #b9c0cc !important;
+  }
+
+  .lembar-cetak {
+    color: #111;
+    font-size: 11.5pt;
+    line-height: 1.5;
+  }
+
+  .lembar-cetak table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .lembar-cetak th,
+  .lembar-cetak td {
+    border: 1px solid #99a;
+    padding: 6px 8px;
+    color: #111 !important;
+    background: none !important;
+  }
+
+  .lembar-cetak thead th {
+    background: #eef1f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 10pt;
+    text-align: left;
+  }
+
+  .lembar-cetak .angka {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Baris tabel dan blok tanda tangan tidak boleh terpotong antar halaman. */
+  .lembar-cetak tr,
+  .lembar-cetak .utuh {
+    break-inside: avoid;
+  }
+}

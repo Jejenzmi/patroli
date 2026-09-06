@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  ShieldCheck, Plus, Pencil, Trash2, QrCode, Route as RouteIcon, GripVertical, Printer, Clock, Radio,
+  ShieldCheck, Plus, Pencil, Trash2, QrCode, Route as RouteIcon, GripVertical, Printer, Clock, Radio, Layers,
 } from 'lucide-react';
 import { api, qs } from '../lib/api';
 import { toast } from '../lib/store';
@@ -12,7 +12,7 @@ import { ask } from '../components/confirm';
 
 export default function CheckpointsRoutes() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'titik' | 'rute' | 'shift'>('titik');
+  const [tab, setTab] = useState<'titik' | 'rute' | 'shift' | 'zona'>('titik');
   const [siteId, setSiteId] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -23,9 +23,11 @@ export default function CheckpointsRoutes() {
   const cps = useQuery({ queryKey: ['cps', siteId], queryFn: () => api.get('/master/checkpoints' + qs({ siteId })) });
   const routes = useQuery({ queryKey: ['routes', siteId], queryFn: () => api.get('/master/routes' + qs({ siteId })) });
   const shifts = useQuery({ queryKey: ['shifts-all', siteId], queryFn: () => api.get('/master/shifts' + qs({ siteId })) });
+  const zones = useQuery({ queryKey: ['zones', siteId], queryFn: () => api.get('/master/zones' + qs({ siteId })) });
 
   const save = async () => {
-    const jenis = tab === 'titik' ? 'titik patroli' : tab === 'rute' ? 'rute patroli' : 'shift jaga';
+    const jenis =
+      tab === 'titik' ? 'titik patroli' : tab === 'rute' ? 'rute patroli' : tab === 'zona' ? 'zona area' : 'shift jaga';
     if (!(await (form.id ? ask.save(jenis) : ask.create(jenis, form.name)))) return;
     try {
       if (tab === 'titik') {
@@ -44,6 +46,16 @@ export default function CheckpointsRoutes() {
         };
         if (form.id) await api.put(`/master/routes/${form.id}`, body);
         else await api.post('/master/routes', body);
+      } else if (tab === 'zona') {
+        if (!form.siteId || !form.name) return toast.err('Site dan nama zona wajib diisi');
+        const body = {
+          siteId: form.siteId,
+          name: form.name,
+          color: form.color || '#F5A524',
+          riskLevel: form.riskLevel || 'LOW',
+        };
+        if (form.id) await api.put(`/master/zones/${form.id}`, body);
+        else await api.post('/master/zones', body);
       } else {
         if (!form.siteId || !form.name || !form.startTime || !form.endTime)
           return toast.err('Site, nama, dan jam shift wajib diisi');
@@ -66,6 +78,7 @@ export default function CheckpointsRoutes() {
     { k: 'titik', l: 'Titik Patroli', i: ShieldCheck, n: cps.data?.length },
     { k: 'rute', l: 'Rute Patroli', i: RouteIcon, n: routes.data?.length },
     { k: 'shift', l: 'Shift Jaga', i: Clock, n: shifts.data?.length },
+    { k: 'zona', l: 'Zona Area', i: Layers, n: zones.data?.length },
   ] as const;
 
   return (
@@ -80,7 +93,7 @@ export default function CheckpointsRoutes() {
         <button
           className="btn-primary btn-sm"
           onClick={() => {
-            setForm(tab === 'titik' ? { radiusM: 30, siteId } : tab === 'rute' ? { expectedDurationMin: 45, graceMin: 10, checkpointIds: [], siteId } : { startTime: '07:00', endTime: '15:00', lateToleranceMin: 10, siteId });
+            setForm(tab === 'titik' ? { radiusM: 30, siteId } : tab === 'rute' ? { expectedDurationMin: 45, graceMin: 10, checkpointIds: [], siteId } : tab === 'zona' ? { color: '#F5A524', riskLevel: 'LOW', siteId } : { startTime: '07:00', endTime: '15:00', lateToleranceMin: 10, siteId });
             setOpen(true);
           }}
         >
@@ -214,6 +227,53 @@ export default function CheckpointsRoutes() {
             ))
           )}
         </div>
+      )}
+
+      {tab === 'zona' && (
+        <Panel
+          title="Zona Area"
+          icon={Layers}
+          bodyClass="p-0"
+          action={<span className="text-[11px] text-muted">Pengelompokan titik menurut area dan tingkat risikonya</span>}
+        >
+          {zones.isLoading ? (
+            <Loading />
+          ) : !zones.data?.length ? (
+            <Empty
+              text="Belum ada zona"
+              hint="Zona memudahkan mengelompokkan titik patroli: lobi, area parkir, gudang, ruang panel."
+            />
+          ) : (
+            <Table head={['Zona', 'Site', 'Tingkat Risiko', 'Jumlah Titik', '']}>
+              {zones.data.map((z: any) => (
+                <tr key={z.id} className="transition hover:bg-white/[.025]">
+                  <td>
+                    <span className="flex items-center gap-2 text-[13px] font-semibold">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: z.color }} />
+                      {z.name}
+                    </span>
+                  </td>
+                  <td className="text-[12px] text-muted">{z.site?.name}</td>
+                  <td><Chip value={z.riskLevel} tone="severity" /></td>
+                  <td className="num text-[12.5px]">{z._count?.checkpoints ?? 0} titik</td>
+                  <td className="text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        className="btn-ghost btn-sm"
+                        onClick={() => { setForm({ id: z.id, siteId: z.siteId, name: z.name, color: z.color, riskLevel: z.riskLevel }); setOpen(true); }}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button className="btn-ghost btn-sm" onClick={() => setDel({ kind: 'zones', id: z.id })}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Panel>
       )}
 
       {tab === 'shift' && (
@@ -378,6 +438,34 @@ export default function CheckpointsRoutes() {
                     {!form.checkpointIds?.length && <p className="p-3 text-center text-xs text-muted">Belum ada titik dipilih</p>}
                   </ol>
                 </div>
+              </Field>
+            </>
+          )}
+
+          {tab === 'zona' && (
+            <>
+              <Field label="Nama zona" className="sm:col-span-2">
+                <input
+                  className="w-full"
+                  placeholder="mis. Area Parkir Timur"
+                  value={form.name || ''}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </Field>
+              <Field label="Tingkat risiko" hint="Menentukan warna penanda pada peta dan laporan">
+                <Select value={form.riskLevel || 'LOW'} onChange={(e) => setForm({ ...form, riskLevel: e.target.value })}>
+                  <option value="LOW">Rendah</option>
+                  <option value="MEDIUM">Sedang</option>
+                  <option value="HIGH">Tinggi</option>
+                  <option value="CRITICAL">Kritis</option>
+                </Select>
+              </Field>
+              <Field label="Warna penanda">
+                <input
+                  className="w-full"
+                  value={form.color || '#F5A524'}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                />
               </Field>
             </>
           )}

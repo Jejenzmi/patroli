@@ -195,6 +195,23 @@ router.delete('/sites/:id', allow(...ADMIN_ONLY), async (req, res) => {
 
 /* ─────────────────────────── ZONA ─────────────────────────── */
 
+/**
+ * Daftar zona. Sebelumnya zona hanya ikut terbawa pada rincian site, sehingga
+ * tidak ada cara menampilkannya sebagai daftar tersendiri di antarmuka.
+ */
+router.get('/zones', async (req, res) => {
+  const where = await withSiteScope(req, req.query.siteId ? { siteId: String(req.query.siteId) } : {});
+  const rows = await prisma.zone.findMany({
+    where,
+    include: {
+      site: { select: { id: true, name: true, code: true } },
+      _count: { select: { checkpoints: true } },
+    },
+    orderBy: [{ site: { name: 'asc' } }, { name: 'asc' }],
+  });
+  res.json(rows);
+});
+
 router.post('/zones', allow(...COMMAND), async (req, res) => {
   const schema = z.object({
     siteId: z.string(),

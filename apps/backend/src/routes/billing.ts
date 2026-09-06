@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { auth, allow, COMMAND, ADMIN_ONLY } from '../middleware/auth';
 import { dayjs, TZ } from '../lib/time';
 import { audit, notifyUsers } from '../lib/notify';
-import { rp } from '../lib/uang';
+import { rp, terbilangRupiah } from '../lib/uang';
 import { parsePaging } from '../lib/scope';
 import { rekonsiliasi, hitungTotal, nomorTagihanBaru, type BarisTagihan } from '../lib/tagihan';
 
@@ -363,7 +363,15 @@ router.get('/invoices/:id', allow(...COMMAND, 'CLIENT'), async (req, res) => {
     },
   });
   if (!inv) return res.status(404).json({ message: 'Tagihan tidak ditemukan' });
-  res.json(inv);
+
+  // Nilai dalam huruf dan identitas penerbit disertakan agar cetakan tagihan
+  // dapat disusun seluruhnya dari satu permintaan.
+  const target = inv.contract?.pph23Dipotong ? inv.netReceivable : inv.total;
+  res.json({
+    ...inv,
+    terbilang: terbilangRupiah(target),
+    penerbit: await ambilPenerbit(),
+  });
 });
 
 /** Baris tambahan manual: permintaan tenaga tambahan, acara, penyesuaian. */
@@ -421,6 +429,64 @@ router.put('/invoices/:id', allow(...KELOLA), async (req, res) => {
     },
   });
   res.json(inv);
+});
+
+/* ═══════════════ IDENTITAS PENERBIT TAGIHAN ═══════════════ */
+
+/**
+ * Dipakai pada kop cetakan tagihan.
+ *
+ * Disimpan sebagai pengaturan, bukan ditanam di kode, karena alamat, nomor
+ * rekening, dan penanda tangan berubah tanpa menunggu penerapan baru.
+ */
+export const PENERBIT_BAWAAN = {
+  nama: 'PT. Dharmapati Putra Nusantara',
+  alamat: 'Samesta Royal Campaka, Ruko Blok R1 No. 36, Campaka, Purwakarta, Jawa Barat 41181',
+  telepon: '',
+  email: 'info@dharmapati.co.id',
+  npwp: '94.187.081.8-409.000',
+  bank: '',
+  rekening: '',
+  atasNama: '',
+  penandaTangan: '',
+  jabatan: 'Direktur',
+  kota: 'Purwakarta',
+  catatanKaki: 'Pembayaran mohon ditransfer ke rekening di atas dan bukti transfernya dikirimkan kepada kami.',
+};
+
+async function ambilPenerbit() {
+  const s = await prisma.setting.findUnique({ where: { key: 'billing.penerbit' } });
+  return { ...PENERBIT_BAWAAN, ...((s?.value as any) || {}) };
+}
+
+router.get('/penerbit', allow(...COMMAND, 'CLIENT'), async (_req, res) => {
+  res.json(await ambilPenerbit());
+});
+
+router.put('/penerbit', allow(...KELOLA), async (req, res) => {
+  const schema = z.object({
+    nama: z.string().min(3),
+    alamat: z.string().optional().default(''),
+    telepon: z.string().optional().default(''),
+    email: z.string().optional().default(''),
+    npwp: z.string().optional().default(''),
+    bank: z.string().optional().default(''),
+    rekening: z.string().optional().default(''),
+    atasNama: z.string().optional().default(''),
+    penandaTangan: z.string().optional().default(''),
+    jabatan: z.string().optional().default(''),
+    kota: z.string().optional().default(''),
+    catatanKaki: z.string().max(400).optional().default(''),
+  });
+  const p = schema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: p.error.issues[0].message });
+  await prisma.setting.upsert({
+    where: { key: 'billing.penerbit' },
+    create: { key: 'billing.penerbit', value: p.data },
+    update: { value: p.data },
+  });
+  await audit(req.user!.sub, 'UPDATE', 'Setting', 'billing.penerbit', p.data, req.ip);
+  res.json(p.data);
 });
 
 router.post('/invoices/:id/kirim', allow(...KELOLA), async (req, res) => {

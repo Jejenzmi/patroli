@@ -117,6 +117,7 @@ export default function InvoiceDetail() {
   return (
     <>
       <PageHead
+        className="tanpa-cetak"
         crumb="Keuangan · Tagihan"
         title={inv.number}
         desc={`${inv.client?.name} · periode ${inv.period} · terbit ${d(inv.issueDate)} · jatuh tempo ${d(inv.dueDate)}`}
@@ -144,13 +145,15 @@ export default function InvoiceDetail() {
         )}
       </PageHead>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <LembarTagihan inv={inv} />
+
+      <div className="tanpa-cetak mb-4 flex flex-wrap items-center gap-2">
         <span className={`chip ${STATUS[inv.status]?.tone}`}>{STATUS[inv.status]?.label}</span>
         {inv.sentAt && <span className="text-[11.5px] text-muted">Dikirim {dt(inv.sentAt)}</span>}
         {inv.taxInvoiceNo && <span className="num text-[11.5px] text-muted">Faktur pajak {inv.taxInvoiceNo}</span>}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+      <div className="tanpa-cetak grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Panel
           title="Rincian Tagihan"
           icon={Receipt}
@@ -365,5 +368,146 @@ export default function InvoiceDetail() {
         </div>
       </Modal>
     </>
+  );
+}
+
+/**
+ * Lembar tagihan yang tercetak di atas kertas.
+ *
+ * Hanya tampil saat mencetak: di layar, rinciannya sudah disajikan panel
+ * biasa. Isinya sengaja lengkap sebagai dokumen komersial — kop penerbit,
+ * NPWP, nilai dalam huruf, keterangan rekening, dan ruang tanda tangan —
+ * karena tagihan yang dikirim ke pengguna jasa akan diarsipkan bagian
+ * keuangan mereka, bukan sekadar dibaca di layar.
+ */
+function LembarTagihan({ inv }: { inv: any }) {
+  const p = inv.penerbit || {};
+  const potongPph = !!inv.contract?.pph23Dipotong;
+  const tagihan = potongPph ? inv.netReceivable : inv.total;
+
+  const baris = (label: string, nilai: number, tebal = false) => (
+    <tr>
+      <td colSpan={4} style={{ textAlign: 'right', fontWeight: tebal ? 700 : 400 }}>
+        {label}
+      </td>
+      <td className="angka" style={{ fontWeight: tebal ? 700 : 400 }}>
+        {rupiah(nilai)}
+      </td>
+    </tr>
+  );
+
+  return (
+    <div className="hanya-cetak lembar-cetak">
+      {/* Kop penerbit */}
+      <div style={{ borderBottom: '2px solid #111', paddingBottom: 10, marginBottom: 18 }}>
+        <div style={{ fontSize: '15pt', fontWeight: 800, letterSpacing: '.02em' }}>{p.nama}</div>
+        {p.alamat && <div style={{ fontSize: '9.5pt', marginTop: 3 }}>{p.alamat}</div>}
+        <div style={{ fontSize: '9.5pt' }}>
+          {[p.telepon && `Telp. ${p.telepon}`, p.email, p.npwp && `NPWP ${p.npwp}`]
+            .filter(Boolean)
+            .join('  ·  ')}
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: '13pt', fontWeight: 800, letterSpacing: '.14em' }}>FAKTUR TAGIHAN</div>
+        <div className="num" style={{ fontSize: '10pt' }}>
+          Nomor {inv.number}
+        </div>
+      </div>
+
+      <table style={{ border: 'none', marginBottom: 16 }}>
+        <tbody>
+          <tr>
+            <td style={{ border: 'none', width: '50%', verticalAlign: 'top', padding: 0 }}>
+              <div style={{ fontSize: '9pt', textTransform: 'uppercase', letterSpacing: '.1em' }}>Kepada</div>
+              <div style={{ fontWeight: 700, marginTop: 2 }}>{inv.client?.name}</div>
+              {inv.client?.address && <div style={{ fontSize: '9.5pt' }}>{inv.client.address}</div>}
+              {inv.client?.contactName && (
+                <div style={{ fontSize: '9.5pt' }}>u.p. {inv.client.contactName}</div>
+              )}
+            </td>
+            <td style={{ border: 'none', verticalAlign: 'top', padding: 0, fontSize: '9.5pt' }}>
+              <div>Periode layanan : {inv.period}</div>
+              <div>Tanggal terbit : {d(inv.issueDate)}</div>
+              <div>Jatuh tempo : {d(inv.dueDate)}</div>
+              {inv.contract?.number && <div>Kontrak : {inv.contract.number}</div>}
+              {inv.taxInvoiceNo && <div>Faktur pajak : {inv.taxInvoiceNo}</div>}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: '5%' }}>No</th>
+            <th>Uraian</th>
+            <th style={{ width: '10%' }}>Qty</th>
+            <th style={{ width: '18%' }}>Harga Satuan</th>
+            <th style={{ width: '20%' }}>Jumlah</th>
+          </tr>
+        </thead>
+        <tbody>
+          {inv.lines.map((l: any, i: number) => (
+            <tr key={l.id}>
+              <td className="angka">{i + 1}</td>
+              <td>
+                {l.description}
+                {l.site?.name && <div style={{ fontSize: '9pt' }}>{l.site.name}</div>}
+              </td>
+              <td className="angka">
+                {num(l.qty)} {l.unit || ''}
+              </td>
+              <td className="angka">{rupiah(l.unitPrice)}</td>
+              <td className="angka">{rupiah(l.amount)}</td>
+            </tr>
+          ))}
+
+          {baris('Jumlah pos terpasang', inv.subtotal)}
+          {inv.deductionTotal !== 0 && baris('Potongan pos kosong', inv.deductionTotal)}
+          {inv.penaltyTotal !== 0 && baris('Denda SLA', inv.penaltyTotal)}
+          {inv.additionTotal !== 0 && baris('Tambahan', inv.additionTotal)}
+          {inv.managementFee !== 0 && baris('Management fee', inv.managementFee)}
+          {baris('Dasar pengenaan pajak', inv.dpp, true)}
+          {inv.ppn !== 0 && baris(`PPN ${num(inv.contract?.ppnPct ?? 11)}%`, inv.ppn)}
+          {baris('Total tagihan', inv.total, true)}
+          {potongPph && baris(`PPh 23 ${num(inv.contract?.pph23Pct ?? 2)}% (dipotong pemberi kerja)`, -inv.pph23)}
+          {potongPph && baris('Jumlah yang ditransfer', inv.netReceivable, true)}
+        </tbody>
+      </table>
+
+      <div className="utuh" style={{ marginTop: 14, fontSize: '10pt' }}>
+        <b>Terbilang:</b> <i>{inv.terbilang}</i>
+      </div>
+
+      {(p.bank || p.rekening) && (
+        <div className="utuh" style={{ marginTop: 14, fontSize: '10pt' }}>
+          <b>Pembayaran ditujukan ke:</b>
+          <div>
+            {[p.bank, p.rekening, p.atasNama && `a.n. ${p.atasNama}`].filter(Boolean).join('  ·  ')}
+          </div>
+        </div>
+      )}
+
+      {p.catatanKaki && (
+        <div style={{ marginTop: 10, fontSize: '9.5pt', fontStyle: 'italic' }}>{p.catatanKaki}</div>
+      )}
+
+      <div className="utuh" style={{ marginTop: 40, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ textAlign: 'center', minWidth: 230 }}>
+          <div style={{ fontSize: '10pt' }}>
+            {p.kota ? `${p.kota}, ` : ''}
+            {d(inv.issueDate)}
+          </div>
+          <div style={{ fontSize: '10pt' }}>{p.nama}</div>
+          <div style={{ height: 68 }} />
+          <div style={{ fontWeight: 700, borderTop: '1px solid #111', paddingTop: 4 }}>
+            {p.penandaTangan || ' '}
+          </div>
+          {p.jabatan && <div style={{ fontSize: '9.5pt' }}>{p.jabatan}</div>}
+        </div>
+      </div>
+    </div>
   );
 }

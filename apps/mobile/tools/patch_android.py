@@ -21,6 +21,14 @@ PERMS = """    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- Layanan latar depan selama shift. Jenis `location` sengaja dipilih
+         supaya aplikasi boleh membaca posisi selama layanan hidup TANPA izin
+         lokasi latar belakang, yang aksesnya jauh lebih luas dari kebutuhan
+         dan menuntut deklarasi tambahan di Google Play. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
 """
@@ -28,8 +36,15 @@ PERMS = """    <uses-permission android:name="android.permission.INTERNET"/>
 manifest = pathlib.Path("android/app/src/main/AndroidManifest.xml")
 src = manifest.read_text()
 
-if "ACCESS_FINE_LOCATION" not in src:
-    src = src.replace("<application", PERMS + "    <application", 1)
+# Diperiksa satu per satu, bukan sekadar "apakah blok izin sudah ada".
+# Memeriksa keberadaan blok membuat izin yang ditambahkan belakangan tidak
+# pernah terpasang pada proyek yang sudah pernah dipatch — kekeliruan yang
+# sudah sekali terjadi pada penyataan <queries>.
+_izin_baru = [b for b in PERMS.strip().splitlines() if 'android:name="' in b]
+_kurang = [b for b in _izin_baru if b.split('android:name="')[1].split('"')[0] not in src]
+if _kurang:
+    src = src.replace("<application", "\n".join(_kurang) + "\n\n    <application", 1)
+    manifest.write_text(src)
 src = re.sub(r'android:label="[^"]*"', 'android:label="DHARMAPATI"', src, count=1)
 
 # Layar penuh pada perangkat berlayar jangkung: tanpa ini sebagian ROM
@@ -156,6 +171,28 @@ if 'android:scheme="market"' not in src:
         src = src.replace("</queries>", TAMBAHAN, 1)
     else:
         src = src.replace("<application", "<queries>\n" + TAMBAHAN + "\n\n    <application", 1)
+    manifest.write_text(src)
+
+
+# Jenis layanan latar depan harus dinyatakan di manifes aplikasi sejak Android
+# 14; plugin mendeklarasikan servicenya sendiri, jadi nilainya ditimpa di sini.
+if "flutter_foreground_task.service" not in src:
+    src = src.replace(
+        "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">",
+        "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n"
+        "    xmlns:tools=\"http://schemas.android.com/tools\">",
+        1,
+    )
+    src = src.replace(
+        "    </application>",
+        '        <service\n'
+        '            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"\n'
+        '            android:foregroundServiceType="location"\n'
+        '            android:exported="false"\n'
+        '            tools:replace="android:foregroundServiceType" />\n'
+        "    </application>",
+        1,
+    )
     manifest.write_text(src)
 
 

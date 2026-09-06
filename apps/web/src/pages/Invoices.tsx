@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Receipt, Plus, Wallet, TriangleAlert, Calculator, Send } from 'lucide-react';
+import { Receipt, Plus, Wallet, TriangleAlert, Calculator, Send, Building2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
-import { Panel, PageHead, Loading, Empty, Modal, Field, Select, Table, Stat } from '../components/ui';
+import { Panel, PageHead, Loading, Empty, Modal, Field, Input, Select, Textarea, Table, Stat } from '../components/ui';
 import { ask } from '../components/confirm';
 import { d, num, rupiah } from '../lib/format';
 
@@ -112,6 +112,8 @@ export default function Invoices() {
           <Stat label="Jumlah Tagihan" value={num(rows.length)} icon={Receipt} tone="violet" />
         </div>
       )}
+
+      {admin && <IdentitasPenerbit />}
 
       {admin && piutang && (
         <Panel title="Umur Piutang" icon={TriangleAlert} className="mb-4">
@@ -302,5 +304,89 @@ export default function Invoices() {
         </div>
       </Modal>
     </>
+  );
+}
+
+/**
+ * Identitas yang tercetak pada kop tagihan.
+ *
+ * Disimpan sebagai pengaturan, bukan ditanam di kode: alamat, nomor rekening,
+ * dan penanda tangan berubah tanpa menunggu penerapan versi baru.
+ */
+function IdentitasPenerbit() {
+  const qc = useQueryClient();
+  const [buka, setBuka] = useState(false);
+  const { data } = useQuery<any>({ queryKey: ['penerbit'], queryFn: () => api.get('/billing/penerbit') });
+  const [form, setForm] = useState<any>(null);
+  const nilai = form ?? data;
+
+  const simpan = async () => {
+    if (!nilai) return;
+    if (!(await ask.save('identitas penerbit tagihan'))) return;
+    try {
+      await api.put('/billing/penerbit', nilai);
+      toast.ok('Identitas tersimpan', 'Dipakai pada kop tagihan yang dicetak.');
+      setForm(null);
+      qc.invalidateQueries({ queryKey: ['penerbit'] });
+    } catch (e: any) {
+      toast.err('Gagal menyimpan', e.message);
+    }
+  };
+
+  if (!nilai) return null;
+
+  const kolom = (kunci: string, label: string, hint?: string, lebar?: string) => (
+    <Field label={label} hint={hint} className={lebar}>
+      <Input value={nilai[kunci] ?? ''} onChange={(e) => setForm({ ...nilai, [kunci]: e.target.value })} />
+    </Field>
+  );
+
+  return (
+    <Panel
+      title="Identitas Penerbit Tagihan"
+      icon={Building2}
+      className="mb-4"
+      action={
+        <div className="flex gap-2">
+          {buka && (
+            <button className="btn-primary btn-sm" onClick={simpan}>
+              Simpan
+            </button>
+          )}
+          <button className="btn-ghost btn-sm" onClick={() => setBuka(!buka)}>
+            {buka ? 'Tutup' : 'Ubah'}
+          </button>
+        </div>
+      }
+    >
+      {!buka ? (
+        <p className="text-xs leading-relaxed text-muted">
+          <b className="text-ink">{nilai.nama}</b>
+          {nilai.npwp ? ` · NPWP ${nilai.npwp}` : ''}
+          {nilai.bank ? ` · ${nilai.bank} ${nilai.rekening}` : ' · rekening pembayaran belum diisi'}
+          {nilai.penandaTangan ? ` · ditandatangani ${nilai.penandaTangan}` : ' · penanda tangan belum diisi'}
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {kolom('nama', 'Nama badan usaha', undefined, 'sm:col-span-2')}
+          {kolom('npwp', 'NPWP')}
+          {kolom('alamat', 'Alamat', undefined, 'sm:col-span-2 lg:col-span-3')}
+          {kolom('telepon', 'Telepon')}
+          {kolom('email', 'Surel')}
+          {kolom('kota', 'Kota penandatanganan')}
+          {kolom('bank', 'Bank', 'mis. BCA KCP Purwakarta')}
+          {kolom('rekening', 'Nomor rekening')}
+          {kolom('atasNama', 'Atas nama rekening')}
+          {kolom('penandaTangan', 'Nama penanda tangan')}
+          {kolom('jabatan', 'Jabatan penanda tangan')}
+          <Field label="Catatan kaki tagihan" className="sm:col-span-2 lg:col-span-3">
+            <Textarea
+              value={nilai.catatanKaki ?? ''}
+              onChange={(e) => setForm({ ...nilai, catatanKaki: e.target.value })}
+            />
+          </Field>
+        </div>
+      )}
+    </Panel>
   );
 }

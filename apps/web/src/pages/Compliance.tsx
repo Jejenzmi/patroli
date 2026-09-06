@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShieldCheck, Plus, Trash2, Save, TriangleAlert, FileBadge, Grid3x3, Gavel, FileSignature, UserX, CheckCircle2,
+  Upload, FileCheck2, Loader2,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast, useAuth } from '../lib/store';
@@ -70,6 +71,7 @@ function Berkas() {
         issuedAt: form.issuedAt || null,
         expiresAt: form.expiresAt || null,
         note: form.note || null,
+        fileUrl: form.fileUrl || null,
       };
       if (ubah) await api.put(`/compliance/documents/${form.id}`, body);
       else await api.post('/compliance/documents', body);
@@ -154,7 +156,7 @@ function Berkas() {
         {!(semua || []).length ? (
           <Empty text="Belum ada berkas tercatat" hint="Mulai dari KTA Polri dan sertifikat Gada seluruh anggota" />
         ) : (
-          <Table head={['Personel', 'Jenis', 'Nomor', 'Terbit', 'Berakhir', 'Sisa', '']}>
+          <Table head={['Personel', 'Jenis', 'Nomor', 'Terbit', 'Berakhir', 'Sisa', 'Pindaian', '']}>
             {semua.map((b: any) => (
               <tr key={b.id} className="transition hover:bg-white/[.025]">
                 <td>
@@ -175,6 +177,22 @@ function Berkas() {
                 <td className={`num text-[12.5px] font-semibold ${warnaSisa(b.sisaHari)}`}>
                   {b.sisaHari === null ? '—' : b.sisaHari < 0 ? `mati ${Math.abs(b.sisaHari)} hari` : `${b.sisaHari} hari`}
                 </td>
+                <td>
+                  {b.fileUrl ? (
+                    <a
+                      href={b.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[12px] text-cyan underline"
+                    >
+                      <FileCheck2 size={13} /> Lihat
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted">
+                      <TriangleAlert size={12} className="text-amber/70" /> belum ada
+                    </span>
+                  )}
+                </td>
                 <td className="text-right">
                   <div className="flex justify-end gap-1.5">
                     <button
@@ -188,6 +206,7 @@ function Berkas() {
                           issuedAt: b.issuedAt?.slice(0, 10),
                           expiresAt: b.expiresAt?.slice(0, 10),
                           note: b.note,
+                          fileUrl: b.fileUrl,
                         });
                         setOpen(true);
                       }}
@@ -254,9 +273,76 @@ function Berkas() {
           <Field label="Catatan">
             <Textarea value={form.note || ''} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </Field>
+
+          <Field
+            label="Pindaian berkas"
+            hint="Foto atau PDF dokumen aslinya. Inilah yang diminta pemeriksa saat audit — nomor saja tidak cukup."
+          >
+            <BerkasPindaian
+              url={form.fileUrl}
+              onChange={(url) => setForm({ ...form, fileUrl: url })}
+            />
+          </Field>
         </div>
       </Modal>
     </>
+  );
+}
+
+/**
+ * Unggah dan pratinjau pindaian dokumen.
+ *
+ * Berkas disimpan lebih dulu, lalu tautannya menempel pada catatan berkas.
+ * Dengan begitu dokumen yang gagal tersimpan tidak meninggalkan tautan mati.
+ */
+function BerkasPindaian({ url, onChange }: { url?: string | null; onChange: (u: string | null) => void }) {
+  const [naik, setNaik] = useState(false);
+
+  const pilih = async (file?: File | null) => {
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024) return toast.err('Berkas terlalu besar', 'Batasnya 12 MB.');
+    setNaik(true);
+    try {
+      const { url: hasil } = await api.upload(file, 'berkas-personel');
+      onChange(hasil);
+      toast.ok('Pindaian terunggah');
+    } catch (e: any) {
+      toast.err('Gagal mengunggah', e.message);
+    } finally {
+      setNaik(false);
+    }
+  };
+
+  if (url)
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-line bg-abyss/50 p-3">
+        <FileCheck2 size={18} className="shrink-0 text-emerald" />
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="min-w-0 flex-1 truncate text-xs text-cyan underline"
+        >
+          {url.split('/').pop()}
+        </a>
+        <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => onChange(null)}>
+          <Trash2 size={13} /> Ganti
+        </button>
+      </div>
+    );
+
+  return (
+    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-abyss/40 px-4 py-6 text-xs text-muted transition hover:border-amber/40 hover:text-ink">
+      {naik ? <Loader2 size={15} className="animate-spin text-amber" /> : <Upload size={15} />}
+      {naik ? 'Mengunggah…' : 'Pilih foto atau PDF dokumen'}
+      <input
+        type="file"
+        className="hidden"
+        accept="image/*,application/pdf"
+        disabled={naik}
+        onChange={(e) => pilih(e.target.files?.[0])}
+      />
+    </label>
   );
 }
 

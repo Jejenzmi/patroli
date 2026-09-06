@@ -374,14 +374,16 @@ export function PageHead({
   desc,
   children,
   crumb,
+  className,
 }: {
   title: string;
   desc?: string;
   children?: React.ReactNode;
   crumb?: string;
+  className?: string;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className={clsx('mb-6 flex flex-wrap items-end justify-between gap-4', className)}>
       <div>
         {crumb && (
           <p className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[.18em] text-amber/80">

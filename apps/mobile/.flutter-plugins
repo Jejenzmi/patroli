@@ -4,6 +4,7 @@ device_info_plus=/home/cirrus/.pub-cache/hosted/pub.dev/device_info_plus-10.1.2/
 file_selector_linux=/home/cirrus/.pub-cache/hosted/pub.dev/file_selector_linux-0.9.3+2/
 file_selector_macos=/home/cirrus/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.4+2/
 file_selector_windows=/home/cirrus/.pub-cache/hosted/pub.dev/file_selector_windows-0.9.3+4/
+flutter_foreground_task=/home/cirrus/.pub-cache/hosted/pub.dev/flutter_foreground_task-8.17.0/
 flutter_plugin_android_lifecycle=/home/cirrus/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.26/
 geolocator=/home/cirrus/.pub-cache/hosted/pub.dev/geolocator-13.0.4/
 geolocator_android=/home/cirrus/.pub-cache/hosted/pub.dev/geolocator_android-4.6.1/

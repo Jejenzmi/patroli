@@ -3,7 +3,12 @@
  * sirene tiang. Idempoten — dijalankan ulang tidak menggandakan apa pun, dan
  * sirene yang alamatnya sudah diarahkan ke perangkat asli tidak ditimpa.
  */
-import { prisma } from "../src/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+// Klien sendiri, bukan meminjam dari src/: berkas sumber tidak ikut ke dalam
+// image produksi, hanya hasil kompilasinya — dan seeder dijalankan lewat tsx
+// langsung dari folder prisma.
+const prisma = new PrismaClient();
 
 const BASIS_SIM = process.env.ALARM_SIM_BASE || "http://localhost:5027/api/alarm-sim";
 const TOKEN_SIM = process.env.ALARM_SIM_TOKEN || "sirene-uji";
@@ -60,6 +65,18 @@ async function main() {
   }
 
   // ── Sirene tiang: satu di gerbang tiap site, satu per lantai ──
+  //
+  // Hanya dipasang bila tiruan papan relai memang dinyalakan. Di instans
+  // produksi tiruannya mati, sehingga sirene contoh yang mengarah ke sana
+  // hanya akan menjadi perangkat yang tombol ujinya selalu gagal. Sirene
+  // sungguhan didaftarkan sendiri beserta alamat perangkatnya.
+  const simAktif = !!process.env.ALARM_SIM_TOKEN && process.env.ALARM_SIM_TOKEN !== "sirene-uji";
+  if (!simAktif && process.env.SEED_DEMO !== "true") {
+    console.log("  · sirene contoh dilewati — daftarkan perangkat aslinya lewat halaman Darurat & Sirene");
+    console.log("▸ selesai");
+    return;
+  }
+
   const sites = await prisma.site.findMany({ include: { floors: { orderBy: { level: "asc" } } } });
   let sirene = 0;
   for (const s of sites) {

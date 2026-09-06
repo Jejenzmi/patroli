@@ -57,6 +57,7 @@ export default function DailyReport() {
   return (
     <>
       <PageHead
+        className="tanpa-cetak"
         crumb="Analitik"
         title="Laporan Harian"
         desc="Rekap satu hari: kehadiran, putaran patroli, laporan titik, temuan, dan catatan pos jaga."
@@ -81,6 +82,24 @@ export default function DailyReport() {
           <Download size={14} /> Unduh CSV
         </button>
       </PageHead>
+
+      {/* Kepala yang hanya muncul di kertas — cetakan tanpa judul dan tanggal
+          tidak dapat diarsipkan. */}
+      {data && (
+        <div className="hanya-cetak lembar-cetak" style={{ marginBottom: 14 }}>
+          <div style={{ borderBottom: '2px solid #111', paddingBottom: 8 }}>
+            <div style={{ fontSize: '13pt', fontWeight: 800, letterSpacing: '.1em' }}>LAPORAN HARIAN JAGA</div>
+            <div style={{ fontSize: '10pt' }}>
+              Tanggal {d(tanggal)}
+              {siteId ? ` · ${daftarSite.find((s: any) => s.id === siteId)?.name ?? ''}` : ' · seluruh site'}
+            </div>
+            <div style={{ fontSize: '9.5pt' }}>
+              Hadir {data.total.hadir} dari {data.total.personel} personel · {data.total.sesiPatroli} putaran
+              patroli · {data.total.titikTerpindai} titik terpindai · {data.total.insiden} insiden
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <Loading label="Menyusun laporan harian…" />

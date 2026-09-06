@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../core/layanan_jaga.dart';
 import '../core/api.dart';
 import '../core/geo.dart';
 import '../core/perangkat.dart';
@@ -276,6 +277,14 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
             : 'Tidak ada jaringan — presensi tersimpan dan akan terkirim sendiri',
       ));
       kirimJejak();
+
+      // Layanan latar depan menjaga proses aplikasi tetap hidup selama shift:
+      // tanpa itu jejak lokasi dan pengawas gerak berhenti begitu layar mati.
+      final jadwal = state.today.isNotEmpty ? state.today.first : null;
+      await LayananJaga.i.mulai(
+        site: jadwal?.site.name ?? 'Pos jaga',
+        shift: jadwal?.shiftName ?? 'Jaga',
+      );
     } on ApiException catch (err) {
       emit(state.copyWith(loading: false, error: err.message));
     } catch (err) {
@@ -305,6 +314,10 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
             ? 'Presensi pulang tercatat. Terima kasih.'
             : 'Tidak ada jaringan — presensi pulang tersimpan dan akan terkirim sendiri',
       ));
+
+      // Shift selesai: layanan latar depan dimatikan agar aplikasi tidak lagi
+      // memantau di luar jam tugas — sekaligus tidak menghabiskan baterai.
+      await LayananJaga.i.hentikan();
     } on ApiException catch (err) {
       emit(state.copyWith(loading: false, error: err.message));
     } catch (err) {
