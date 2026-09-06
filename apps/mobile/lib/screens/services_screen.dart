@@ -9,6 +9,8 @@ import 'handover_screen.dart';
 import 'incidents_screen.dart';
 import 'kpi_screen.dart';
 import 'leaves_screen.dart';
+import 'payslip_screen.dart';
+import 'relief_screen.dart';
 import 'schedule_screen.dart';
 import 'tasks_screen.dart';
 import 'vehicles_screen.dart';
@@ -44,6 +46,8 @@ class ServicesScreen extends StatelessWidget {
             P.amber, () => const ScheduleScreen()),
         _Layanan(Icons.history, 'Riwayat Patroli', 'Putaran patroli yang sudah Anda jalani',
             P.cyan, () => const ScheduleScreen(tabAwal: 1)),
+        _Layanan(Icons.swap_horiz_rounded, 'Tawaran Shift', 'Pos kosong yang ditawarkan kepada Anda',
+            P.cyan, () => const ReliefScreen()),
         _Layanan(Icons.assignment_outlined, 'Tugas Insidental', 'Perintah kerja beserta bukti penyelesaian',
             P.emerald, () => const TasksScreen()),
         _Layanan(Icons.campaign_outlined, 'Instruksi Danru', 'Arahan resmi dengan tanda terima baca',
@@ -54,6 +58,8 @@ class ServicesScreen extends StatelessWidget {
             P.amber, () => const KpiScreen()),
         _Layanan(Icons.event_available_outlined, 'Cuti, Izin & Lembur', 'Ajukan dan pantau status persetujuan',
             P.violet, () => const LeavesScreen()),
+        _Layanan(Icons.receipt_long_outlined, 'Slip Gaji Saya', 'Rincian penghasilan, potongan, dan kasbon',
+            P.emerald, () => const PayslipScreen()),
       ],
       'Pelaporan': [
         _Layanan(Icons.report_gmailerrorred_outlined, 'Lapor Insiden', 'Kirim laporan kejadian berfoto',

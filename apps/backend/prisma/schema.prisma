@@ -99,6 +99,9 @@ enum DeviceStatus {
 }
 
 enum PanicType {
+  /// Anggota tidak bergerak atau tidak menjawab pemeriksaan berkala —
+  /// dikirim otomatis oleh aplikasi, bukan ditekan orang.
+  MAN_DOWN
   UMUM
   KEBAKARAN
   KECELAKAAN
@@ -241,6 +244,39 @@ model User {
   division         EmergencyDivision? @relation("DivisionMembers", fields: [divisionId], references: [id])
   devices          UserDevice[]
   integrityEvents  IntegrityEvent[]
+
+  /// ── Data kepegawaian untuk penggajian ──
+  gradeId         String?
+  grade           PayGrade?   @relation(fields: [gradeId], references: [id])
+  bankName        String?
+  bankAccount     String?
+  bankAccountName String?
+  npwp            String?
+  ptkp            PtkpStatus? @default(TK0)
+  bpjsTkNo        String?
+  bpjsKesNo       String?
+  resignedAt      DateTime?
+
+  /// Personel yang tidak boleh dipekerjakan lagi — dicegah saat penjadwalan
+  blacklisted     Boolean     @default(false)
+  blacklistReason String?
+
+  reliefOffersMade  ReliefOffer[]     @relation("PembuatTawaran")
+  reliefOffersTaken ReliefOffer[]     @relation("PengambilTawaran")
+  reliefCandidacies ReliefCandidate[] @relation("CalonPengganti")
+
+  documents       PersonnelDocument[] @relation("BerkasPersonel")
+  documentsChecked PersonnelDocument[] @relation("PemeriksaBerkas")
+  disciplines     Discipline[]        @relation("PenerimaSanksi")
+  disciplinesIssued Discipline[]      @relation("PemberiSanksi")
+  employmentContracts EmploymentContract[] @relation("KontrakKerja")
+
+  payslips        Payslip[]
+  payrollRuns     PayrollRun[]   @relation("PayrollPembuat")
+  loans           EmployeeLoan[] @relation("PeminjamKasbon")
+  loansApproved   EmployeeLoan[] @relation("PenyetujuKasbon")
+  paymentsTaken   Payment[]      @relation("PenerimaBayar")
+  expensesLogged  SiteExpense[]  @relation("PencatatBiaya")
 }
 
 model Client {
@@ -260,6 +296,9 @@ model Client {
 
   sites Site[]
   users User[]
+
+  contracts Contract[]
+  invoices  Invoice[]
 }
 
 model Site {
@@ -307,6 +346,13 @@ model Site {
   panicRoutes PanicRoute[]
   alarms      AlarmDevice[]
   integrityEvents IntegrityEvent[]
+
+  payslips      Payslip[]
+  reliefOffers  ReliefOffer[]
+  competencies  CompetencyRequirement[]
+  contractPosts ContractPost[]
+  invoiceLines  InvoiceLine[]
+  expenses      SiteExpense[]
 }
 
 model Zone {
@@ -405,7 +451,9 @@ model Shift {
   color           String   @default("#22D3EE")
   createdAt       DateTime @default(now())
 
-  schedules Schedule[]
+  schedules     Schedule[]
+  contractPosts ContractPost[]
+  reliefOffers  ReliefOffer[]
 
   @@index([siteId])
 }
@@ -429,6 +477,7 @@ model Schedule {
 
   attendance Attendance?
   patrols    PatrolSession[]
+  reliefOffers ReliefOffer[]
 
   @@unique([guardId, date, shiftId])
   @@index([siteId, date])
@@ -554,6 +603,7 @@ model Incident {
 
   media   IncidentMedia[]
   updates IncidentUpdate[]
+  disciplines Discipline[]
 
   @@index([siteId, status])
   @@index([status, severity])
@@ -1072,4 +1122,625 @@ model IntegrityEvent {
 
   @@index([userId, createdAt])
   @@index([type, createdAt])
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIORITAS 1 — KEUANGAN: PENGUPAHAN, PENAGIHAN, LABA-RUGI PER SITE
+//
+// Catatan satuan uang: seluruh nilai rupiah disimpan sebagai Float dan selalu
+// dibulatkan ke rupiah penuh sebelum disimpan (lihat lib/uang.ts). Bilangan
+// bulat sampai 9×10^15 masih persis pada Float 64-bit, jadi tidak ada
+// kehilangan sen; Decimal sengaja dihindari agar hasil API tetap berupa angka
+// JSON, bukan string.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum PayrollType {
+  BULANAN
+  THR
+}
+
+enum PayrollStatus {
+  DRAFT
+  TERKUNCI
+  DIBAYAR
+}
+
+enum LoanStatus {
+  AKTIF
+  LUNAS
+  DIBATALKAN
+}
+
+/// Status PTKP menentukan kategori tarif efektif (TER) PPh 21.
+enum PtkpStatus {
+  TK0
+  TK1
+  TK2
+  TK3
+  K0
+  K1
+  K2
+  K3
+}
+
+enum ContractStatus {
+  DRAF
+  AKTIF
+  SELESAI
+  BATAL
+}
+
+enum InvoiceStatus {
+  DRAFT
+  TERKIRIM
+  SEBAGIAN
+  LUNAS
+  BATAL
+}
+
+enum InvoiceLineKind {
+  POS
+  TAMBAHAN
+  POTONGAN
+  DENDA
+}
+
+enum PenaltyKind {
+  POS_KOSONG
+  MANGKIR
+  RONDE
+  INSIDEN
+  LAINNYA
+}
+
+enum PenaltyUnit {
+  PER_KEJADIAN
+  PER_HARI_ORANG
+  PERSEN_TAGIHAN
+}
+
+/// Upah minimum kabupaten/kota per tahun — dasar penggajian dan kalkulator tender.
+model MinimumWage {
+  id     String  @id @default(cuid())
+  region String
+  year   Int
+  amount Float
+  note   String?
+
+  @@unique([region, year])
+}
+
+/// Hari libur nasional — menentukan pengali lembur (Kepmen 102/2004).
+model Holiday {
+  id     String   @id @default(cuid())
+  date   DateTime @unique
+  name   String
+  isNational Boolean @default(true)
+}
+
+/// Golongan upah: satu paket komponen gaji yang dipasang ke personel.
+model PayGrade {
+  id                String  @id @default(cuid())
+  code              String  @unique
+  name              String
+  /// Wilayah UMK acuan, dicocokkan dengan MinimumWage.region
+  region            String?
+  baseSalary        Float
+  /// Tunjangan tetap (jabatan/masa kerja) — ikut menjadi dasar lembur & BPJS
+  positionAllowance Float   @default(0)
+  /// Tunjangan tidak tetap, dibayar menurut kehadiran
+  mealPerDay        Float   @default(0)
+  transportPerDay   Float   @default(0)
+  /// Bonus bila tidak ada mangkir sama sekali dalam satu periode
+  attendanceBonus   Float   @default(0)
+  /// Potongan per hari mangkir; 0 berarti dihitung upah sebulan ÷ hari kerja
+  absentDeduction   Float   @default(0)
+  latePenaltyPerMin Float   @default(0)
+  bpjsTkEnrolled    Boolean @default(true)
+  bpjsKesEnrolled   Boolean @default(true)
+  /// Tarif JKK menurut kelompok risiko usaha (%)
+  jkkRatePct        Float   @default(0.54)
+  overtimeEligible  Boolean @default(true)
+  isActive          Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  users    User[]
+  payslips Payslip[]
+  posts    ContractPost[]
+}
+
+/// Satu periode penggajian. Selama DRAFT boleh dihitung ulang berkali-kali;
+/// setelah TERKUNCI angkanya beku dan menjadi dasar biaya pada laba-rugi.
+model PayrollRun {
+  id                String        @id @default(cuid())
+  period            String
+  type              PayrollType   @default(BULANAN)
+  status            PayrollStatus @default(DRAFT)
+  note              String?
+  /// Hari kerja standar periode ini — dipakai untuk pro-rata dan potongan mangkir
+  workingDays       Int           @default(0)
+  totalGross        Float         @default(0)
+  totalDeduction    Float         @default(0)
+  totalNet          Float         @default(0)
+  totalEmployerCost Float         @default(0)
+  createdById       String?
+  createdBy         User?         @relation("PayrollPembuat", fields: [createdById], references: [id])
+  calculatedAt      DateTime?
+  lockedAt          DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  payslips Payslip[]
+
+  @@unique([period, type])
+  @@index([status])
+}
+
+/// Slip gaji satu orang pada satu periode.
+model Payslip {
+  id      String     @id @default(cuid())
+  runId   String
+  run     PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  guardId String
+  guard   User       @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  siteId  String?
+  site    Site?      @relation(fields: [siteId], references: [id])
+  gradeId String?
+  grade   PayGrade?  @relation(fields: [gradeId], references: [id])
+
+  /// Rekap kehadiran periode ini
+  hariJadwal  Int   @default(0)
+  hariHadir   Int   @default(0)
+  hariMangkir Int   @default(0)
+  menitTelat  Int   @default(0)
+  jamLembur   Float @default(0)
+  /// Masa kerja dalam bulan pada akhir periode — dasar pro-rata THR
+  masaKerjaBulan Int @default(0)
+
+  /// Upah sebulan (pokok + tunjangan tetap): dasar lembur, BPJS, dan THR
+  upahDasar       Float @default(0)
+  /// Rincian baris: [{ kode, label, jumlah, catatan? }]
+  earnings        Json
+  deductions      Json
+  bruto           Float @default(0)
+  totalPotongan   Float @default(0)
+  netto           Float @default(0)
+  pph21           Float @default(0)
+  /// Kategori TER yang dipakai (A/B/C) atau "DESEMBER" untuk perhitungan tahunan
+  pph21Basis      String?
+  bpjsPekerja     Float @default(0)
+  bpjsPerusahaan  Float @default(0)
+  /// Total beban perusahaan = bruto + BPJS perusahaan (dipakai pada laba-rugi)
+  biayaPerusahaan Float @default(0)
+
+  /// Salinan data bank saat slip dibuat, agar berkas transfer tetap sahih
+  bankName        String?
+  bankAccount     String?
+  bankAccountName String?
+  note            String?
+  createdAt       DateTime @default(now())
+
+  loanPayments LoanPayment[]
+
+  @@unique([runId, guardId])
+  @@index([guardId])
+  @@index([siteId])
+}
+
+/// Kasbon / pinjaman karyawan yang dipotong bertahap dari gaji.
+model EmployeeLoan {
+  id                String     @id @default(cuid())
+  guardId           String
+  guard             User       @relation("PeminjamKasbon", fields: [guardId], references: [id], onDelete: Cascade)
+  amount            Float
+  installmentCount  Int
+  installmentAmount Float
+  paidAmount        Float      @default(0)
+  /// Periode pertama pemotongan (YYYY-MM)
+  startPeriod       String
+  reason            String?
+  status            LoanStatus @default(AKTIF)
+  approvedById      String?
+  approvedBy        User?      @relation("PenyetujuKasbon", fields: [approvedById], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  payments LoanPayment[]
+
+  @@index([guardId, status])
+}
+
+model LoanPayment {
+  id        String       @id @default(cuid())
+  loanId    String
+  loan      EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  payslipId String?
+  payslip   Payslip?     @relation(fields: [payslipId], references: [id])
+  period    String
+  amount    Float
+  createdAt DateTime     @default(now())
+
+  @@unique([loanId, period])
+}
+
+/// Tarif Efektif Rata-rata PPh 21 bulanan (PMK 168/2023).
+/// Nilai disimpan sebagai data, bukan kode, karena tabel resmi dapat berubah
+/// dan harus dapat diperbarui admin tanpa penerapan ulang.
+model TerBracket {
+  id       String @id @default(cuid())
+  category String
+  minGross Float
+  /// null berarti tidak terbatas
+  maxGross Float?
+  ratePct  Float
+
+  @@unique([category, minGross])
+  @@index([category])
+}
+
+// ─────────────── PENAGIHAN ───────────────
+
+/// Kontrak jasa pengamanan dengan satu klien.
+model Contract {
+  id          String         @id @default(cuid())
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  number      String         @unique
+  title       String?
+  startDate   DateTime
+  endDate     DateTime
+  /// Tanggal terbit tagihan tiap bulan
+  billingDay  Int            @default(1)
+  /// Termin pembayaran (hari) sejak tagihan terbit
+  dueDays     Int            @default(14)
+  managementFeePct Float     @default(0)
+  /// Batas denda SLA sebulan, dalam persen nilai pos. Kontrak jasa pengamanan
+  /// lazim membatasi denda agar tidak melampaui sebagian kecil nilai tagihan.
+  penaltyCapPct Float        @default(10)
+  ppnPct      Float          @default(11)
+  pph23Pct    Float          @default(2)
+  /// Klien memotong PPh 23 di muka (lazim untuk jasa keamanan)
+  pph23Dipotong Boolean      @default(true)
+  status      ContractStatus @default(AKTIF)
+  note        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  posts     ContractPost[]
+  penalties PenaltyRule[]
+  invoices  Invoice[]
+
+  @@index([clientId, status])
+}
+
+/// Manning table (TOP): susunan pos yang diperjanjikan pada satu site.
+model ContractPost {
+  id           String  @id @default(cuid())
+  contractId   String
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  shiftId      String?
+  shift        Shift?   @relation(fields: [shiftId], references: [id])
+  positionName String
+  headcount    Int      @default(1)
+  /// Tarif jasa per orang per bulan yang ditagihkan ke klien
+  ratePerPerson Float
+  gradeId      String?
+  grade        PayGrade? @relation(fields: [gradeId], references: [id])
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([siteId])
+}
+
+/// Aturan denda SLA yang disepakati dalam kontrak.
+model PenaltyRule {
+  id          String      @id @default(cuid())
+  contractId  String
+  contract    Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  kind        PenaltyKind
+  description String
+  amount      Float
+  unit        PenaltyUnit @default(PER_KEJADIAN)
+  /// Ambang toleransi sebelum denda berlaku (mis. 2 kejadian per bulan)
+  threshold   Int         @default(0)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  @@index([contractId])
+}
+
+model Invoice {
+  id         String        @id @default(cuid())
+  contractId String
+  contract   Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  number     String        @unique
+  period     String
+  issueDate  DateTime
+  dueDate    DateTime
+  status     InvoiceStatus @default(DRAFT)
+  /// Nilai pos terpasang sebelum potongan
+  subtotal       Float @default(0)
+  deductionTotal Float @default(0)
+  penaltyTotal   Float @default(0)
+  additionTotal  Float @default(0)
+  managementFee  Float @default(0)
+  dpp            Float @default(0)
+  ppn            Float @default(0)
+  pph23          Float @default(0)
+  total          Float @default(0)
+  /// Yang benar-benar diterima setelah PPh 23 dipotong klien
+  netReceivable  Float @default(0)
+  paidTotal      Float @default(0)
+  taxInvoiceNo   String?
+  note           String?
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  // Sengaja bukan kunci unik: tagihan yang dibatalkan harus boleh diterbitkan
+  // ulang pada periode yang sama. Pencegahan ganda dilakukan di routes/billing.ts
+  // dengan mengabaikan tagihan berstatus BATAL.
+  @@index([contractId, period])
+  @@index([clientId, status])
+}
+
+model InvoiceLine {
+  id          String          @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  kind        InvoiceLineKind @default(POS)
+  siteId      String?
+  site        Site?           @relation(fields: [siteId], references: [id])
+  description String
+  qty         Float           @default(1)
+  unit        String?
+  unitPrice   Float           @default(0)
+  amount      Float           @default(0)
+  /// Asal angka (rekonsiliasi otomatis) agar dapat ditelusuri klien
+  meta        Json?
+
+  @@index([invoiceId])
+  @@index([siteId])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amount    Float
+  method    String   @default("TRANSFER")
+  ref       String?
+  note      String?
+  createdById String?
+  createdBy   User?  @relation("PenerimaBayar", fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+/// Biaya langsung site di luar gaji: seragam, APD, perlengkapan, transport.
+model SiteExpense {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  period      String
+  category    String   @default("LAINNYA")
+  description String
+  amount      Float
+  createdById String?
+  createdBy   User?    @relation("PencatatBiaya", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, period])
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIORITAS 2 — RISIKO & KEPATUHAN
+//
+// Yang diaudit lebih dulu saat pemeriksaan Baharkam atau klien adalah berkas
+// personel: KTA, sertifikat Gada, SKCK, dan MCU. Modul ini menyimpan masa
+// berlakunya, mengingatkan sebelum kedaluwarsa, dan mencegah penjadwalan
+// personel yang berkasnya sudah mati.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum DocType {
+  KTA_POLRI
+  GADA_PRATAMA
+  GADA_MADYA
+  GADA_UTAMA
+  SKCK
+  MCU
+  KTP
+  SIM_A
+  SIM_C
+  DAMKAR
+  P3K
+  IJAZAH
+  SERTIFIKAT_LAIN
+}
+
+enum DisciplineLevel {
+  TEGURAN
+  SP1
+  SP2
+  SP3
+  PHK
+}
+
+enum EmploymentType {
+  PROBATION
+  PKWT
+  PKWTT
+}
+
+enum EmploymentStatus {
+  BERJALAN
+  BERAKHIR
+  DIPERPANJANG
+  DIPUTUS
+}
+
+/// Berkas personel beserta masa berlakunya.
+model PersonnelDocument {
+  id           String    @id @default(cuid())
+  guardId      String
+  guard        User      @relation("BerkasPersonel", fields: [guardId], references: [id], onDelete: Cascade)
+  type         DocType
+  number       String?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  fileUrl      String?
+  note         String?
+  verifiedById String?
+  verifiedBy   User?     @relation("PemeriksaBerkas", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime?
+  /// Pengingat terakhir yang sudah dikirim (90/60/30/0) agar tidak berulang tiap hari
+  lastAlertDays Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([guardId, type, number])
+  @@index([guardId, type])
+  @@index([expiresAt])
+}
+
+/// Syarat kompetensi yang dituntut kontrak pada satu site.
+model CompetencyRequirement {
+  id       String  @id @default(cuid())
+  siteId   String
+  site     Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  docType  DocType
+  /// Jumlah personel bersertifikat yang wajib ada
+  minCount Int     @default(1)
+  /// Bila benar, jumlah itu harus terpenuhi pada tiap shift, bukan per site
+  perShift Boolean @default(false)
+  note     String?
+  createdAt DateTime @default(now())
+
+  @@unique([siteId, docType])
+}
+
+/// Rekam jejak kedisiplinan personel.
+model Discipline {
+  id         String          @id @default(cuid())
+  guardId    String
+  guard      User            @relation("PenerimaSanksi", fields: [guardId], references: [id], onDelete: Cascade)
+  level      DisciplineLevel
+  reason     String
+  incidentId String?
+  incident   Incident?       @relation(fields: [incidentId], references: [id])
+  date       DateTime        @default(now())
+  /// Masa berlaku sanksi — SP lazimnya gugur setelah enam bulan
+  expiresAt  DateTime?
+  fileUrl    String?
+  note       String?
+  issuedById String?
+  issuedBy   User?           @relation("PemberiSanksi", fields: [issuedById], references: [id])
+  createdAt  DateTime        @default(now())
+
+  @@index([guardId, date])
+}
+
+/// Perjanjian kerja (PKWT/PKWTT) beserta pengingat perpanjangan.
+model EmploymentContract {
+  id        String           @id @default(cuid())
+  guardId   String
+  guard     User             @relation("KontrakKerja", fields: [guardId], references: [id], onDelete: Cascade)
+  type      EmploymentType   @default(PKWT)
+  number    String
+  startDate DateTime
+  endDate   DateTime?
+  status    EmploymentStatus @default(BERJALAN)
+  fileUrl   String?
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([guardId, status])
+  @@index([endDate])
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIORITAS 3 — MESIN PENGISIAN POS
+//
+// Pos kosong adalah kerugian ganda: dipotong klien pada tagihan dan menjadi
+// denda SLA. Modul ini menawarkan shift kosong kepada personel cadangan yang
+// paling layak — kompetensi cocok, jarak terdekat, jam kerja belum melewati
+// batas — lalu mencatat siapa yang mengambilnya.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum ReliefStatus {
+  TERBUKA
+  DIAMBIL
+  DIBATALKAN
+  KEDALUWARSA
+}
+
+enum ReliefResponse {
+  BERSEDIA
+  TIDAK_BISA
+}
+
+/// Tawaran pengisian shift yang ditinggalkan.
+model ReliefOffer {
+  id          String       @id @default(cuid())
+  siteId      String
+  site        Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  shiftId     String
+  shift       Shift        @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  date        DateTime
+  /// Jadwal yang batal, bila tawaran ini muncul dari seseorang yang berhalangan
+  scheduleId  String?
+  schedule    Schedule?    @relation(fields: [scheduleId], references: [id])
+  reason      String
+  status      ReliefStatus @default(TERBUKA)
+  createdById String?
+  createdBy   User?        @relation("PembuatTawaran", fields: [createdById], references: [id])
+  takenById   String?
+  takenBy     User?        @relation("PengambilTawaran", fields: [takenById], references: [id])
+  takenAt     DateTime?
+  /// Tawaran gugur sendiri setelah shift dimulai
+  expiresAt   DateTime?
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  candidates ReliefCandidate[]
+
+  @@index([siteId, date])
+  @@index([status])
+}
+
+/// Calon pengganti beserta alasan penilaiannya, disimpan agar keputusan
+/// mesin dapat ditelusuri dan dipertanggungjawabkan.
+model ReliefCandidate {
+  id          String          @id @default(cuid())
+  offerId     String
+  offer       ReliefOffer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  guardId     String
+  guard       User            @relation("CalonPengganti", fields: [guardId], references: [id], onDelete: Cascade)
+  score       Float
+  distanceM   Int?
+  reasons     Json
+  notifiedAt  DateTime?
+  respondedAt DateTime?
+  response    ReliefResponse?
+
+  @@unique([offerId, guardId])
+  @@index([guardId])
 }

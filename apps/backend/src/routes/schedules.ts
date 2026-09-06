@@ -6,6 +6,8 @@ import { dateKey, shiftStartAt, dayjs, TZ, startOfDay, endOfDay } from '../lib/t
 import { haversineMeters, WS_EVENTS } from '@patroli/shared';
 import { emitOps } from '../lib/ws';
 import { audit, notifyUsers } from '../lib/notify';
+import { alasanTidakBolehBertugas } from '../lib/kepatuhan';
+import { periksaKelelahan, konfigKelelahan } from '../lib/roster';
 import { withSiteScope, bolehSite } from '../lib/scope';
 import { cocokkanWajah, wajahAktif } from '../lib/face';
 import { periksaLokasi } from '../lib/integritas';
@@ -57,6 +59,22 @@ router.post('/', allow(...COMMAND), async (req, res) => {
     where: { guardId: data.guardId, date: data.date, shiftId: data.shiftId },
   });
   if (dup) return res.status(409).json({ message: 'Anggota sudah dijadwalkan pada shift ini' });
+
+  // Berkas mati, daftar hitam, atau status tidak aktif menghalangi penugasan.
+  const halangan = await alasanTidakBolehBertugas(data.guardId);
+  if (halangan) return res.status(422).json({ message: halangan, code: 'TIDAK_LAYAK_BERTUGAS' });
+
+  // Pagar jam kerja: mengisi pos dengan orang yang sudah kelelahan hanya
+  // memindahkan masalah menjadi kecelakaan kerja.
+  const konfig = await konfigKelelahan();
+  const lelah = await periksaKelelahan(data.guardId, data.shiftId, data.date, konfig);
+  if (lelah.length && konfig.tegakkan && req.body?.abaikanKelelahan !== true)
+    return res.status(422).json({
+      message: lelah[0].pesan,
+      pelanggaran: lelah,
+      code: 'BATAS_JAM_KERJA',
+    });
+
   const s = await prisma.schedule.create({ data: data as any });
   await notifyUsers([data.guardId], {
     type: 'SCHEDULE',
@@ -86,13 +104,29 @@ router.post('/bulk', allow(...COMMAND), async (req, res) => {
   if (!p.success) return res.status(400).json({ message: 'Parameter roster massal tidak valid' });
   const { siteId, shiftId, guardIds, routeId, from, to, weekdays, notes } = p.data;
 
+  // Personel yang tidak layak disaring di depan agar roster massal tidak
+  // diam-diam memasang orang yang berkasnya sudah mati.
+  const ditolak: { guardId: string; alasan: string }[] = [];
+  const layak: string[] = [];
+  for (const g of guardIds) {
+    const alasan = await alasanTidakBolehBertugas(g);
+    if (alasan) ditolak.push({ guardId: g, alasan });
+    else layak.push(g);
+  }
+  if (!layak.length)
+    return res.status(422).json({
+      message: 'Tidak ada personel yang layak ditugaskan pada rentang ini',
+      ditolak,
+      code: 'TIDAK_LAYAK_BERTUGAS',
+    });
+
   const rows: any[] = [];
   let cursor = dayjs(from).tz(TZ).startOf('day');
   const end = dayjs(to).tz(TZ).startOf('day');
   let guard = 0;
   while (cursor.isBefore(end) || cursor.isSame(end)) {
     if (!weekdays?.length || weekdays.includes(cursor.day())) {
-      for (const guardId of guardIds) {
+      for (const guardId of layak) {
         rows.push({
           siteId,
           shiftId,
@@ -107,8 +141,15 @@ router.post('/bulk', allow(...COMMAND), async (req, res) => {
     if (++guard > 400) break;
   }
   const result = await prisma.schedule.createMany({ data: rows, skipDuplicates: true });
-  await audit(req.user!.sub, 'BULK_CREATE', 'Schedule', null, { count: result.count }, req.ip);
-  res.json({ created: result.count, requested: rows.length });
+  await audit(
+    req.user!.sub,
+    'BULK_CREATE',
+    'Schedule',
+    null,
+    { count: result.count, ditolak: ditolak.length },
+    req.ip
+  );
+  res.json({ created: result.count, requested: rows.length, ditolak });
 });
 
 router.put('/:id', allow(...COMMAND), async (req, res) => {

@@ -14,6 +14,7 @@ import { ensureBucket } from './lib/storage';
 import { initWs } from './lib/ws';
 import { redis } from './lib/redis';
 import { mulaiPenjadwalRetensi } from './lib/retention';
+import { mulaiPenjadwalKepatuhan } from './lib/kepatuhan';
 import { wajahDiaktifkan } from './lib/face';
 
 import authRoutes from './routes/auth';
@@ -27,6 +28,11 @@ import reportRoutes from './routes/reports';
 import uploadRoutes from './routes/uploads';
 import taskRoutes from './routes/tasks';
 import kpiRoutes from './routes/kpi';
+import payrollRoutes from './routes/payroll';
+import billingRoutes from './routes/billing';
+import financeRoutes from './routes/finance';
+import complianceRoutes from './routes/compliance';
+import reliefRoutes from './routes/relief';
 import alarmSimRoutes from './routes/alarm-sim';
 
 const app = express();
@@ -68,6 +74,11 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/kpi', kpiRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/compliance', complianceRoutes);
+app.use('/api/relief', reliefRoutes);
 // Tiruan papan relai sirene untuk peragaan dan pengujian; perangkat asli
 // berada di jaringan lokal klien dan dipanggil lewat alamatnya sendiri.
 app.use('/api/alarm-sim', alarmSimRoutes);
@@ -89,6 +100,7 @@ initWs(server);
 async function bootstrap() {
   await ensureBucket().catch((e) => console.warn('[minio] bucket:', e.message));
   mulaiPenjadwalRetensi();
+  mulaiPenjadwalKepatuhan();
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`▸ PATROLI API siap di :${PORT}`);
   });

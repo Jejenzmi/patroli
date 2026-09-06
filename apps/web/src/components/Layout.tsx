@@ -7,6 +7,7 @@ import {
   Users, Building2, MapPin, UserSquare2, Car, ClipboardList, Boxes, Megaphone,
   BarChart3, ScrollText, LogOut, Bell, Menu, Radio, Siren, ChevronsLeft, ChevronsRight, Search,
   ClipboardCheck, Trophy, Layers, CalendarClock, Volume2, ShieldAlert,
+  Wallet, FileSignature, Receipt, Scale, FileBadge, UserPlus,
 } from 'lucide-react';
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
@@ -38,9 +39,11 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/jadwal', label: 'Jadwal Jaga', icon: CalendarDays },
       { to: '/presensi', label: 'Presensi', icon: Fingerprint },
+      { to: '/pos-kosong', label: 'Pos Kosong & Pengganti', icon: UserPlus, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/personel', label: 'Data Personel', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
       { to: '/serah-terima', label: 'Serah Terima', icon: ClipboardList },
       { to: '/cuti', label: 'Cuti & Lembur', icon: CalendarClock },
+      { to: '/kepatuhan', label: 'Kepatuhan & Berkas', icon: FileBadge, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
     ],
   },
   {
@@ -60,6 +63,15 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { to: '/lantai', label: 'Lantai & Regu', icon: Layers, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/sirene', label: 'Darurat & Sirene', icon: Volume2, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/pengumuman', label: 'Pengumuman', icon: Megaphone },
+    ],
+  },
+  {
+    group: 'Keuangan',
+    items: [
+      { to: '/penggajian', label: 'Penggajian', icon: Wallet, roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { to: '/kontrak', label: 'Kontrak & Manning', icon: FileSignature, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
+      { to: '/tagihan', label: 'Tagihan Klien', icon: Receipt, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
+      { to: '/laba-rugi', label: 'Laba-Rugi per Site', icon: Scale, roles: ['SUPER_ADMIN', 'ADMIN'] },
     ],
   },
   {

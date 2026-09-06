@@ -26,6 +26,12 @@ export default function Guards() {
 
   const sites = useQuery({ queryKey: ['sites'], queryFn: () => api.get('/master/sites') });
   const clients = useQuery({ queryKey: ['clients'], queryFn: () => api.get('/master/clients') });
+  // Golongan upah hanya boleh dibaca administrator — dipakai pada bagian penggajian.
+  const grades = useQuery({
+    queryKey: ['pay-grades'],
+    queryFn: () => api.get('/payroll/grades'),
+    enabled: canEdit,
+  });
   const { data, isLoading } = useQuery({
     queryKey: ['users', q, role],
     queryFn: () => api.get('/users' + qs({ q, role, pageSize: 200 })),
@@ -35,8 +41,12 @@ export default function Guards() {
     if (!form.name || !form.username) return toast.err('Nama dan nama pengguna wajib diisi');
     if (!(await (form.id ? ask.save(`data personel ${form.name}`) : ask.create('personel', form.name)))) return;
     try {
-      if (form.id) await api.put(`/users/${form.id}`, form);
-      else await api.post('/users', form);
+      // Sandi kosong berarti "jangan diubah" — bila ikut terkirim, penyaringan
+      // panjang minimal di server akan menolak seluruh penyimpanan.
+      const { password, ...sisa } = form;
+      const body = password ? form : sisa;
+      if (form.id) await api.put(`/users/${form.id}`, body);
+      else await api.post('/users', body);
       toast.ok(form.id ? 'Data personel diperbarui' : 'Personel ditambahkan');
       setOpen(false);
       setForm({ role: 'GUARD' });
@@ -141,7 +151,7 @@ export default function Guards() {
                       >
                         <ScanFace size={12} />
                       </button>
-                      <button className="btn-ghost btn-sm" onClick={() => { setForm({ ...u, homeSiteId: u.homeSite?.id, clientId: u.client?.id, password: '' }); setOpen(true); }}>
+                      <button className="btn-ghost btn-sm" onClick={() => { setForm({ ...u, homeSiteId: u.homeSite?.id, clientId: u.client?.id, gradeId: u.grade?.id, password: '' }); setOpen(true); }}>
                         <Pencil size={12} />
                       </button>
                       <button className="btn-ghost btn-sm" onClick={() => setDel(u.id)}>
@@ -224,6 +234,56 @@ export default function Guards() {
                 <option value="RESIGNED">Berhenti</option>
               </Select>
             </Field>
+          )}
+
+          {/* Data penggajian — tanpa golongan upah, personel tidak ikut dihitung gajinya. */}
+          {canEdit && form.role !== 'CLIENT' && (
+            <>
+              <div className="sm:col-span-2 mt-1 border-t border-line/70 pt-3">
+                <p className="text-[11px] font-bold uppercase tracking-[.15em] text-amber">Data Penggajian</p>
+              </div>
+              <Field label="Golongan upah" hint="Menentukan gaji pokok, tunjangan, dan iuran">
+                <Select value={form.gradeId || ''} onChange={(e) => setForm({ ...form, gradeId: e.target.value })}>
+                  <option value="">Belum bergolongan</option>
+                  {(grades.data || []).map((g: any) => (
+                    <option key={g.id} value={g.id}>{g.code} — {g.name}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Status PTKP" hint="Menentukan kategori tarif efektif PPh 21">
+                <Select value={form.ptkp || 'TK0'} onChange={(e) => setForm({ ...form, ptkp: e.target.value })}>
+                  {['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3'].map((k) => (
+                    <option key={k} value={k}>{k.replace(/^(TK|K)(\d)$/, '$1/$2')}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Bank">
+                <Select value={form.bankName || ''} onChange={(e) => setForm({ ...form, bankName: e.target.value })}>
+                  <option value="">— pilih bank —</option>
+                  {['BCA', 'MANDIRI', 'BRI', 'BNI', 'BSI', 'BJB', 'CIMB', 'PERMATA'].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Nomor rekening">
+                <input className="w-full" value={form.bankAccount || ''} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} />
+              </Field>
+              <Field label="Nama pemilik rekening" className="sm:col-span-2" hint="Kosongkan bila sama dengan nama personel">
+                <input className="w-full" value={form.bankAccountName || ''} onChange={(e) => setForm({ ...form, bankAccountName: e.target.value })} />
+              </Field>
+              <Field label="NPWP">
+                <input className="w-full" value={form.npwp || ''} onChange={(e) => setForm({ ...form, npwp: e.target.value })} />
+              </Field>
+              <Field label="Nomor BPJS Ketenagakerjaan">
+                <input className="w-full" value={form.bpjsTkNo || ''} onChange={(e) => setForm({ ...form, bpjsTkNo: e.target.value })} />
+              </Field>
+              <Field label="Nomor BPJS Kesehatan">
+                <input className="w-full" value={form.bpjsKesNo || ''} onChange={(e) => setForm({ ...form, bpjsKesNo: e.target.value })} />
+              </Field>
+              <Field label="Tanggal berhenti" hint="Diisi bila berhenti di tengah periode — gaji dihitung pro-rata">
+                <input type="date" className="w-full" value={(form.resignedAt || '').slice(0, 10)} onChange={(e) => setForm({ ...form, resignedAt: e.target.value })} />
+              </Field>
+            </>
           )}
         </div>
       </Modal>

@@ -49,6 +49,10 @@ router.get('/', allow(...COMMAND, 'CLIENT'), async (req, res) => {
         team: { select: { id: true, name: true } },
         homeSite: { select: { id: true, name: true } },
         client: { select: { id: true, name: true } },
+        grade: { select: { id: true, code: true, name: true } },
+        ptkp: true,
+        bankName: true,
+        bankAccount: true,
       },
     }),
     prisma.user.count({ where }),
@@ -70,12 +74,22 @@ const userSchema = z.object({
   homeSiteId: z.string().optional().nullable(),
   avatarUrl: z.string().optional().nullable(),
   joinedAt: z.string().optional().nullable(),
+  // ── Data kepegawaian untuk penggajian ──
+  gradeId: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+  bankAccountName: z.string().optional().nullable(),
+  npwp: z.string().optional().nullable(),
+  ptkp: z.enum(['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']).optional().nullable(),
+  bpjsTkNo: z.string().optional().nullable(),
+  bpjsKesNo: z.string().optional().nullable(),
+  resignedAt: z.string().optional().nullable(),
 });
 
 router.post('/', allow(...ADMIN_ONLY), async (req, res) => {
   const p = userSchema.safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Data personel tidak lengkap', issues: p.error.issues });
-  const { password, joinedAt, email, ...rest } = p.data;
+  const { password, joinedAt, email, resignedAt, ...rest } = p.data;
   const exists = await prisma.user.findUnique({ where: { username: rest.username.toLowerCase() } });
   if (exists) return res.status(409).json({ message: 'Nama pengguna sudah dipakai' });
   const user = await prisma.user.create({
@@ -84,6 +98,7 @@ router.post('/', allow(...ADMIN_ONLY), async (req, res) => {
       username: rest.username.toLowerCase(),
       email: email || null,
       joinedAt: joinedAt ? new Date(joinedAt) : new Date(),
+      resignedAt: resignedAt ? new Date(resignedAt) : null,
       passwordHash: await bcrypt.hash(password || 'patroli123', 10),
     },
   });
@@ -95,10 +110,11 @@ router.post('/', allow(...ADMIN_ONLY), async (req, res) => {
 router.put('/:id', allow(...ADMIN_ONLY), async (req, res) => {
   const p = userSchema.partial().safeParse(req.body);
   if (!p.success) return res.status(400).json({ message: 'Data tidak valid' });
-  const { password, joinedAt, email, ...rest } = p.data;
+  const { password, joinedAt, email, resignedAt, ...rest } = p.data;
   const data: any = { ...rest };
   if (email !== undefined) data.email = email || null;
   if (joinedAt) data.joinedAt = new Date(joinedAt);
+  if (resignedAt !== undefined) data.resignedAt = resignedAt ? new Date(resignedAt) : null;
   if (password) data.passwordHash = await bcrypt.hash(password, 10);
   if (data.username) data.username = String(data.username).toLowerCase();
   const user = await prisma.user.update({ where: { id: req.params.id }, data });

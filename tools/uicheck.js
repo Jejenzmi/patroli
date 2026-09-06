@@ -31,6 +31,14 @@ const ROUTES = [
   ['/laporan', 'Laporan & Ekspor'],
   ['/jejak-audit', 'Jejak Audit'],
   ['/profil', 'Profil Saya'],
+  // Modul keuangan, kepatuhan, dan pengisian pos (P1–P3)
+  ['/penggajian', 'Penggajian'],
+  ['/pengupahan', 'Pengaturan Upah'],
+  ['/kontrak', 'Kontrak & Manning Table'],
+  ['/tagihan', 'Tagihan Klien'],
+  ['/laba-rugi', 'Laba-Rugi per Site'],
+  ['/kepatuhan', 'Kepatuhan & Berkas'],
+  ['/pos-kosong', 'Pos Kosong & Pengganti'],
 ];
 
 (async () => {
@@ -51,7 +59,10 @@ const ROUTES = [
   let pass = 0;
 
   const PERAN = process.env.PERAN || "SUPER_ADMIN";
-  const KHUSUS_KOMANDO = ["/titik", "/klien", "/jejak-audit", "/darurat", "/lantai", "/sirene", "/integritas"];
+  const KHUSUS_KOMANDO = [
+    "/titik", "/klien", "/jejak-audit", "/darurat", "/lantai", "/sirene", "/integritas",
+    "/penggajian", "/pengupahan", "/laba-rugi", "/kepatuhan",
+  ];
   const daftar = PERAN === "CLIENT" ? ROUTES.filter((r) => !KHUSUS_KOMANDO.includes(r[0])) : ROUTES;
 
   for (const [route, expect] of daftar) {

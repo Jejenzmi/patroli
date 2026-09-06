@@ -33,6 +33,16 @@ import Floors from './pages/Floors';
 import Leaves from './pages/Leaves';
 import Sirene from './pages/Sirene';
 import Integritas from './pages/Integritas';
+import Payroll from './pages/Payroll';
+import PayrollDetail from './pages/PayrollDetail';
+import PayrollConfig from './pages/PayrollConfig';
+import Contracts from './pages/Contracts';
+import ContractDetail from './pages/ContractDetail';
+import Invoices from './pages/Invoices';
+import InvoiceDetail from './pages/InvoiceDetail';
+import Pnl from './pages/Pnl';
+import Compliance from './pages/Compliance';
+import Relief from './pages/Relief';
 
 function Guard({ children }: { children: JSX.Element }) {
   const { me, ready } = useAuth();
@@ -83,6 +93,16 @@ export default function App() {
         <Route path="/site" element={<Sites />} />
         <Route path="/titik" element={<CheckpointsRoutes />} />
         <Route path="/pengumuman" element={<Announcements />} />
+        <Route path="/kepatuhan" element={<Compliance />} />
+        <Route path="/pos-kosong" element={<Relief />} />
+        <Route path="/penggajian" element={<Payroll />} />
+        <Route path="/penggajian/:id" element={<PayrollDetail />} />
+        <Route path="/pengupahan" element={<PayrollConfig />} />
+        <Route path="/kontrak" element={<Contracts />} />
+        <Route path="/kontrak/:id" element={<ContractDetail />} />
+        <Route path="/tagihan" element={<Invoices />} />
+        <Route path="/tagihan/:id" element={<InvoiceDetail />} />
+        <Route path="/laba-rugi" element={<Pnl />} />
         <Route path="/laporan" element={<Reports />} />
         <Route path="/jejak-audit" element={<AuditTrail />} />
         <Route path="/profil" element={<Profile />} />
