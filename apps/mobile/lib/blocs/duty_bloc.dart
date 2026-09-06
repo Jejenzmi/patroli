@@ -376,7 +376,10 @@ class DutyBloc extends Bloc<DutyEvent, DutyState> {
   /// tersimpan di perangkat, agar kemajuan tetap terbaca saat luring.
   String? _idDariKode(String? kode) {
     if (kode == null) return null;
-    final bersih = kode.replaceFirst('PATROLI:CP:', '').trim();
+    // Stiker cetakan lama masih berawalan PATROLI:CP:, cetakan baru
+    // DHARMAPATI:CP: — keduanya diterima agar penggantian stiker tidak
+    // harus serentak.
+    final bersih = kode.replaceFirst('DHARMAPATI:CP:', '').replaceFirst('PATROLI:CP:', '').trim();
     final titik = state.session?.route.checkpoints;
     if (titik == null) return null;
     for (final c in titik) {

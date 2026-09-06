@@ -4,7 +4,7 @@
  */
 const puppeteer = require('puppeteer');
 
-const BASE = 'https://patroli.gokar.id';
+const BASE = 'https://dashboard.dharmapati.co.id';
 const ROUTES = [
   ['/', 'Pusat Komando'],
   ['/peta', 'Peta Situasi'],
@@ -39,6 +39,7 @@ const ROUTES = [
   ['/laba-rugi', 'Laba-Rugi per Site'],
   ['/kepatuhan', 'Kepatuhan & Berkas'],
   ['/pos-kosong', 'Pos Kosong & Pengganti'],
+  ['/laporan-harian', 'Laporan Harian'],
 ];
 
 (async () => {

@@ -217,7 +217,7 @@ router.get('/checkpoints/:id/qr', allow(...COMMAND), async (req, res) => {
     include: { site: { select: { name: true, code: true } }, zone: true },
   });
   if (!cp) return res.status(404).json({ message: 'Titik patroli tidak ditemukan' });
-  res.json({ payload: `PATROLI:CP:${cp.code}`, checkpoint: cp });
+  res.json({ payload: `DHARMAPATI:CP:${cp.code}`, checkpoint: cp });
 });
 
 /* ─────────────────────────── RUTE PATROLI ─────────────────────────── */
@@ -246,6 +246,7 @@ const routeSchema = z.object({
   graceMin: z.number().int().nonnegative().optional(),
   enforceOrder: z.boolean().optional(),
   requirePhoto: z.boolean().optional(),
+  requireReport: z.boolean().optional(),
   isActive: z.boolean().optional(),
   checkpointIds: z.array(z.string()).optional(),
 });

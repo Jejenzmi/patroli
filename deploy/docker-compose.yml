@@ -81,7 +81,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_PASSWORD}
       MINIO_BUCKET: patroli
       STORAGE_PUBLIC_URL: /storage
-      CORS_ORIGIN: https://patroli.gokar.id
+      CORS_ORIGIN: https://dashboard.dharmapati.co.id
       FACE_SERVICE_URL: http://face:5028
       FACE_THRESHOLD: 0.55
       STORAGE_INTERNAL_URL: http://minio:9000/patroli

@@ -2,7 +2,7 @@
   "name": "patroli-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "PATROLI — Security Guard Management & Patrol Tracking System",
+  "description": "DHARMAPATI — Security Guard Management & Patrol Tracking System",
   "workspaces": [
     "packages/*",
     "apps/backend",

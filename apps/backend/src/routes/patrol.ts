@@ -110,8 +110,10 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
   if (session.status !== 'IN_PROGRESS')
     return res.status(400).json({ message: 'Sesi patroli sudah ditutup' });
 
-  // Kode QR memakai format PATROLI:CP:<kode-titik>
-  const rawCode = p.data.code?.replace(/^PATROLI:CP:/i, '').trim();
+  // Kode QR memakai format DHARMAPATI:CP:<kode-titik>. Stiker cetakan lama
+  // berawalan PATROLI:CP: tetap diterima agar penggantian stiker di lapangan
+  // tidak harus serentak.
+  const rawCode = p.data.code?.replace(/^(DHARMAPATI|PATROLI):CP:/i, '').trim();
   const link = session.route.checkpoints.find(
     (rc) =>
       (p.data.checkpointId && rc.checkpointId === p.data.checkpointId) ||
@@ -139,6 +141,24 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
 
   if (session.route.requirePhoto && !p.data.photoUrl)
     return res.status(422).json({ message: 'Rute ini mewajibkan foto bukti di setiap titik' });
+
+  // Laporan wajib: titik yang sudah dipindai tetapi belum dilaporkan
+  // kondisinya menahan pemindaian berikutnya. Tanpa aturan ini patroli hanya
+  // meninggalkan jejak lewat, bukan catatan keadaan.
+  if (session.route.requireReport) {
+    const tertunda = await prisma.patrolScan.findFirst({
+      where: { sessionId: session.id, reportedAt: null },
+      include: { checkpoint: { select: { name: true } } },
+      orderBy: { scannedAt: 'asc' },
+    });
+    if (tertunda)
+      return res.status(422).json({
+        message: `Laporan titik ${tertunda.checkpoint.name} belum diisi. Selesaikan laporannya sebelum memindai titik berikutnya.`,
+        code: 'LAPORAN_BELUM_DIISI',
+        scanId: tertunda.id,
+        checkpoint: tertunda.checkpoint.name,
+      });
+  }
 
   // Keaslian koordinat: pemindaian dengan lokasi palsu ditolak dan dicatat.
   const periksa = await periksaLokasi({
@@ -191,6 +211,9 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
       distanceFlag,
       orderIndex: link.orderIndex,
       offlineAt: p.data.offlineAt ? new Date(p.data.offlineAt) : null,
+      // Bila catatan sudah ikut terkirim bersama pemindaian, laporannya
+      // dianggap selesai saat itu juga; selebihnya menunggu diisi.
+      reportedAt: !session.route.requireReport || p.data.note ? new Date() : null,
     },
     include: { checkpoint: true },
   });
@@ -222,7 +245,74 @@ router.post('/:id/scan', allow(...COMMAND, 'GUARD'), async (req, res) => {
     );
   }
 
-  res.status(201).json({ scan, scannedCount, total: session.totalCheckpoints });
+  res.status(201).json({
+    scan,
+    scannedCount,
+    total: session.totalCheckpoints,
+    laporanWajib: session.route.requireReport && !scan.reportedAt,
+  });
+});
+
+/**
+ * Laporan kondisi satu titik.
+ *
+ * Dipisah dari pemindaian karena di lapangan urutannya memang begitu: pindai
+ * dulu supaya waktunya tercatat tepat, baru tuliskan keadaan yang ditemukan.
+ */
+router.post('/scans/:scanId/laporan', allow(...COMMAND, 'GUARD'), async (req, res) => {
+  const schema = z.object({
+    condition: z.enum(['AMAN', 'PERLU_PERHATIAN', 'BERMASALAH']),
+    note: z.string().optional().nullable(),
+    photoUrl: z.string().optional().nullable(),
+    offlineAt: z.string().optional().nullable(),
+  });
+  const p = schema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ message: 'Kondisi titik wajib dipilih' });
+
+  const scan = await prisma.patrolScan.findUnique({
+    where: { id: req.params.scanId },
+    include: {
+      checkpoint: { select: { name: true } },
+      session: { select: { id: true, guardId: true, siteId: true, status: true } },
+    },
+  });
+  if (!scan) return res.status(404).json({ message: 'Pemindaian tidak ditemukan' });
+  if (scan.session.guardId !== req.user!.sub && req.user!.role === 'GUARD')
+    return res.status(403).json({ message: 'Bukan pemindaian Anda' });
+
+  // Temuan yang bukan "aman" wajib dijelaskan — laporan kosong tidak berguna
+  // bagi siapa pun yang membacanya kemudian.
+  if (p.data.condition !== 'AMAN' && !(p.data.note || '').trim())
+    return res.status(422).json({ message: 'Jelaskan temuannya secara singkat pada catatan' });
+
+  const baru = await prisma.patrolScan.update({
+    where: { id: scan.id },
+    data: {
+      condition: p.data.condition,
+      note: p.data.note || null,
+      photoUrl: p.data.photoUrl || scan.photoUrl,
+      reportedAt: new Date(),
+      ...(p.data.offlineAt ? { offlineAt: new Date(p.data.offlineAt) } : {}),
+    },
+  });
+
+  const issueCount = await prisma.patrolScan.count({
+    where: { sessionId: scan.sessionId, condition: { in: ['PERLU_PERHATIAN', 'BERMASALAH'] } },
+  });
+  await prisma.patrolSession.update({ where: { id: scan.sessionId }, data: { issueCount } });
+
+  if (p.data.condition !== 'AMAN')
+    await notifyCommand(
+      {
+        type: 'CHECKPOINT_ISSUE',
+        title: p.data.condition === 'BERMASALAH' ? 'Titik bermasalah' : 'Titik perlu perhatian',
+        body: `${scan.checkpoint.name}: ${p.data.note}`,
+        data: { sessionId: scan.sessionId, scanId: scan.id },
+      },
+      scan.session.siteId
+    );
+
+  res.json({ scan: baru, issueCount });
 });
 
 router.post('/:id/finish', allow(...COMMAND, 'GUARD'), async (req, res) => {
@@ -234,6 +324,21 @@ router.post('/:id/finish', allow(...COMMAND, 'GUARD'), async (req, res) => {
   if (session.status !== 'IN_PROGRESS') return res.status(400).json({ message: 'Sesi sudah ditutup' });
   if (session.guardId !== req.user!.sub && req.user!.role === 'GUARD')
     return res.status(403).json({ message: 'Bukan sesi patroli Anda' });
+
+  // Putaran tidak boleh ditutup selama masih ada titik yang belum dilaporkan.
+  if (session.route.requireReport) {
+    const tertunda = await prisma.patrolScan.findFirst({
+      where: { sessionId: session.id, reportedAt: null },
+      include: { checkpoint: { select: { name: true } } },
+      orderBy: { scannedAt: 'asc' },
+    });
+    if (tertunda)
+      return res.status(422).json({
+        message: `Laporan titik ${tertunda.checkpoint.name} belum diisi. Putaran belum dapat diakhiri.`,
+        code: 'LAPORAN_BELUM_DIISI',
+        scanId: tertunda.id,
+      });
+  }
 
   const scanned = await prisma.patrolScan.count({ where: { sessionId: session.id } });
   const missed = Math.max(0, session.totalCheckpoints - scanned);

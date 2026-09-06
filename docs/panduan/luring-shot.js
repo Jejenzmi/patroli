@@ -1,7 +1,7 @@
 /** Memotret ulang dua layar mode tanpa sinyal untuk panduan. */
 const puppeteer = require("puppeteer");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const API = "https://patroli.gokar.id/api";
+const API = "https://dashboard.dharmapati.co.id/api";
 
 (async () => {
   const adm = (await (await fetch(`${API}/auth/login`, {

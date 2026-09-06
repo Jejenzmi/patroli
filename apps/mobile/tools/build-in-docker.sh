@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build APK PATROLI di dalam kontainer Flutter — dijalankan dari dalam kontainer.
+# Build APK DHARMAPATI di dalam kontainer Flutter — dijalankan dari dalam kontainer.
 set -e
 git config --global --add safe.directory /sdks/flutter || true
 
@@ -27,9 +27,9 @@ echo "▸ Mengambil dependensi…"
 flutter pub get
 
 echo "▸ Membangun APK rilis…"
-flutter build apk --release --dart-define=API_BASE=https://patroli.gokar.id
+flutter build apk --release --dart-define=API_BASE=https://dashboard.dharmapati.co.id
 
 mkdir -p dist
-cp build/app/outputs/flutter-apk/app-release.apk dist/PATROLI.apk
-ls -lh dist/PATROLI.apk
+cp build/app/outputs/flutter-apk/app-release.apk dist/DHARMAPATI.apk
+ls -lh dist/DHARMAPATI.apk
 echo "▸ Selesai."

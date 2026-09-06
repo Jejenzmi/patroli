@@ -1,9 +1,9 @@
-# PATROLI — Security Guard Management & Patrol Tracking System
+# DHARMAPATI — Security Guard Management & Patrol Tracking System
 
 Sistem manajemen satuan pengamanan dan pelacakan patroli: satu monorepo berisi
 API, pusat komando berbasis web, dan aplikasi lapangan Android.
 
-**Live:** https://patroli.gokar.id · **APK:** https://patroli.gokar.id/PATROLI.apk
+**Live:** https://dashboard.dharmapati.co.id · **APK:** https://dashboard.dharmapati.co.id/DHARMAPATI.apk
 
 ## Struktur monorepo
 
@@ -77,7 +77,7 @@ Layanan: `db` (PostgreSQL 16), `redis`, `minio`, `backend` (:5027), `web` (nginx
 `backup` (dump harian, simpan 14 hari). Skema disinkronkan dan data contoh disemai otomatis
 saat pertama kali dijalankan.
 
-nginx host meneruskan `patroli.gokar.id` ke 8113; sertifikat TLS oleh certbot dengan
+nginx host meneruskan `dashboard.dharmapati.co.id` ke 8113; sertifikat TLS oleh certbot dengan
 perpanjangan otomatis.
 
 ## Membangun APK
@@ -86,7 +86,7 @@ perpanjangan otomatis.
 ./build-apk.sh     # membangun lewat Docker (host tidak perlu Flutter SDK)
 ```
 
-Hasil: `apps/mobile/dist/PATROLI.apk`, dengan alamat server ditanam lewat
+Hasil: `apps/mobile/dist/DHARMAPATI.apk`, dengan alamat server ditanam lewat
 `--dart-define=API_BASE`.
 
 ## Akun contoh

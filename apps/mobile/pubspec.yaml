@@ -1,7 +1,7 @@
 name: patroli_mobile
-description: PATROLI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
+description: DHARMAPATI — aplikasi lapangan satuan pengamanan (presensi, patroli, insiden).
 publish_to: 'none'
-version: 1.5.0+6
+version: 2.1.0+9
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -51,3 +51,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/merek/

@@ -81,11 +81,9 @@ export default function Login() {
 
         <div className="relative flex h-full flex-col justify-between p-12">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-amber/30 bg-amber/15">
-              <ShieldCheck size={22} className="text-amber" />
-            </div>
+            <img src="/merek/logo.png" alt="Dharmapati" className="h-14 w-auto" />
             <div className="leading-tight">
-              <p className="text-lg font-extrabold tracking-[.22em]">PATROLI</p>
+              <p className="text-lg font-extrabold tracking-[.22em]">DHARMAPATI</p>
               <p className="text-[10px] uppercase tracking-[.2em] text-muted">Security Command Center</p>
             </div>
           </div>
@@ -138,10 +136,8 @@ export default function Login() {
       <div className="flex items-center justify-center p-6 sm:p-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
           <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-amber/30 bg-amber/15">
-              <ShieldCheck size={22} className="text-amber" />
-            </div>
-            <p className="text-lg font-extrabold tracking-[.22em]">PATROLI</p>
+            <img src="/merek/logo.png" alt="Dharmapati" className="h-12 w-auto" />
+            <p className="text-lg font-extrabold tracking-[.22em]">DHARMAPATI</p>
           </div>
 
           <h2 className="text-2xl font-extrabold tracking-tight">Masuk ke pusat komando</h2>

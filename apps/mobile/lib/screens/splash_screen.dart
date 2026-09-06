@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 
-/// Layar pembuka: perisai PATROLI dengan sapuan radar.
+/// Layar pembuka: lambang Dharmapati dengan sapuan radar.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -132,7 +132,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               BoxShadow(color: P.amber.withOpacity(.25), blurRadius: 40, spreadRadius: -4),
                             ],
                           ),
-                          child: Icon(Icons.shield_outlined, color: P.amber, size: radar * .21),
+                          child: Padding(
+                            padding: EdgeInsets.all(radar * .045),
+                            child: Image.asset('assets/merek/logo.png', fit: BoxFit.contain),
+                          ),
                         ),
                       ),
                     ],
@@ -145,9 +148,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 child: const Column(
                   children: [
                     FittedBox(
-                      child: Text('PATROLI',
+                      child: Text('DHARMAPATI',
                           style: TextStyle(
-                              fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 9, height: 1)),
+                              fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 6, height: 1)),
                     ),
                     SizedBox(height: 10),
                     Kicker('Security Field Operations'),

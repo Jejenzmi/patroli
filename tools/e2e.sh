@@ -1,6 +1,6 @@
 #!/bin/bash
-# Uji menyeluruh API PATROLI di lingkungan live.
-B=https://patroli.gokar.id/api
+# Uji menyeluruh API DHARMAPATI di lingkungan live.
+B=https://dashboard.dharmapati.co.id/api
 PASS=0; FAIL=0
 j() { python3 -c 'import sys,json;d=json.load(sys.stdin);print(eval("d"+sys.argv[1]))' "$1" 2>/dev/null; }
 num() { local v; v=$(cat); echo "${v:-0}"; }
@@ -48,7 +48,7 @@ DUP=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$A" -H 'Content-Type: a
   -d "{\"siteId\":\"$SID\",\"code\":\"E2E-TEST-01\",\"name\":\"Duplikat\",\"lat\":-6.28,\"lng\":107.15}")
 [ "$DUP" = "409" ] && chk "tolak kode duplikat" 1 || chk "tolak kode duplikat" 0 "$DUP"
 QR=$(curl -s -H "$A" $B/master/checkpoints/$NCID/qr | j "['payload']")
-[ "$QR" = "PATROLI:CP:E2E-TEST-01" ] && chk "muatan QR" 1 || chk "muatan QR" 0 "$QR"
+[ "$QR" = "DHARMAPATI:CP:E2E-TEST-01" ] && chk "muatan QR" 1 || chk "muatan QR" 0 "$QR"
 DEL=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -H "$A" $B/master/checkpoints/$NCID)
 [ "$DEL" = "200" ] && chk "hapus titik patroli" 1 || chk "hapus titik patroli" 0 "$DEL"
 
@@ -73,17 +73,34 @@ CP1=$(echo "$SES" | j "['route']['checkpoints'][0]['checkpoint']['code']")
 CP1LAT=$(echo "$SES" | j "['route']['checkpoints'][0]['checkpoint']['lat']")
 CP1LNG=$(echo "$SES" | j "['route']['checkpoints'][0]['checkpoint']['lng']")
 SC=$(curl -s -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/scan \
-  -d "{\"code\":\"PATROLI:CP:$CP1\",\"method\":\"QR\",\"lat\":$CP1LAT,\"lng\":$CP1LNG}")
+  -d "{\"code\":\"DHARMAPATI:CP:$CP1\",\"method\":\"QR\",\"lat\":$CP1LAT,\"lng\":$CP1LNG}")
 [ "$(echo "$SC" | j "['scannedCount']")" = "1" ] && chk "pindai titik QR" 1 || chk "pindai titik QR" 0 "$SC"
 SC2=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/scan \
-  -d "{\"code\":\"PATROLI:CP:$CP1\",\"method\":\"QR\"}")
+  -d "{\"code\":\"DHARMAPATI:CP:$CP1\",\"method\":\"QR\"}")
 [ "$SC2" = "409" ] && chk "tolak pindai ganda" 1 || chk "tolak pindai ganda" 0 "$SC2"
+
+# Laporan titik wajib: selama titik pertama belum dilaporkan, titik kedua
+# tidak boleh dipindai dan putaran tidak boleh diakhiri.
 CP2=$(echo "$SES" | j "['route']['checkpoints'][1]['checkpoint']['id']")
+CP2LAT=$(echo "$SES" | j "['route']['checkpoints'][1]['checkpoint']['lat']")
+CP2LNG=$(echo "$SES" | j "['route']['checkpoints'][1]['checkpoint']['lng']")
+BLOK=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/scan \
+  -d "{\"checkpointId\":\"$CP2\",\"method\":\"GPS\",\"lat\":$CP2LAT,\"lng\":$CP2LNG}")
+[ "$BLOK" = "422" ] && chk "tahan pindai sebelum laporan titik" 1 || chk "tahan pindai sebelum laporan titik" 0 "$BLOK"
+BLOKF=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/finish -d '{}')
+[ "$BLOKF" = "422" ] && chk "tahan penutupan sebelum laporan titik" 1 || chk "tahan penutupan sebelum laporan titik" 0 "$BLOKF"
+SCID=$(echo "$SC" | j "['scan']['id']")
+LAP=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/scans/$SCID/laporan \
+  -d '{"condition":"PERLU_PERHATIAN","note":"Lampu koridor mati, sudah dilaporkan ke teknisi"}')
+[ "$LAP" = "200" ] && chk "kirim laporan titik" 1 || chk "kirim laporan titik" 0 "$LAP"
+KOSONG=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/scans/$SCID/laporan \
+  -d '{"condition":"BERMASALAH"}')
+[ "$KOSONG" = "422" ] && chk "tolak temuan tanpa penjelasan" 1 || chk "tolak temuan tanpa penjelasan" 0 "$KOSONG"
 FAR=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/scan \
   -d "{\"checkpointId\":\"$CP2\",\"method\":\"GPS\",\"lat\":-8.9,\"lng\":110.5}")
 [ "$FAR" = "422" ] && chk "tolak GPS terlalu jauh" 1 || chk "tolak GPS terlalu jauh" 0 "$FAR"
 OUT=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/scan \
-  -d '{"code":"PATROLI:CP:TIDAK-ADA","method":"QR"}')
+  -d '{"code":"DHARMAPATI:CP:TIDAK-ADA","method":"QR"}')
 [ "$OUT" = "404" ] && chk "tolak titik di luar rute" 1 || chk "tolak titik di luar rute" 0 "$OUT"
 FIN=$(curl -s -X POST -H "$G" -H 'Content-Type: application/json' $B/patrols/$SESID/finish -d '{}')
 [ "$(echo "$FIN" | j "['status']")" = "COMPLETED" ] && chk "selesaikan patroli" 1 || chk "selesaikan patroli" 0 "$FIN"

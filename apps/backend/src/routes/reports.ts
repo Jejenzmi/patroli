@@ -4,6 +4,7 @@ import { auth, allow, COMMAND } from '../middleware/auth';
 import { allowedSiteIds } from '../lib/scope';
 import { startOfDay, endOfDay, dayjs, TZ } from '../lib/time';
 import { cached, getPresence } from '../lib/redis';
+import { laporanHarian } from '../lib/harian';
 
 const router = Router();
 router.use(auth);
@@ -557,6 +558,89 @@ router.get('/export/:kind', allow(...COMMAND, 'CLIENT'), async (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="patroli-${kind}-${dayjs().format('YYYYMMDD')}.csv"`);
   res.send('﻿' + csv);
+});
+
+/* ─────────────────────────── LAPORAN HARIAN ─────────────────────────── */
+
+/**
+ * Rekap satu hari: seluruh personel atau satu orang saja.
+ * Klien hanya melihat personel yang bertugas di sitenya.
+ */
+router.get('/harian', async (req, res) => {
+  const tanggal = String(req.query.tanggal || dayjs().tz(TZ).format('YYYY-MM-DD'));
+  const guardId = req.query.guardId ? String(req.query.guardId) : undefined;
+  const siteId = req.query.siteId ? String(req.query.siteId) : undefined;
+
+  let siteIds = await allowedSiteIds(req);
+  if (siteId) {
+    if (siteIds !== null && !siteIds.includes(siteId))
+      return res.status(403).json({ message: 'Site di luar cakupan akses Anda' });
+    siteIds = [siteId];
+  }
+
+  res.json(await laporanHarian(tanggal, siteIds, guardId));
+});
+
+/** Laporan harian dalam CSV — dipakai tombol unduh di dasbor. */
+router.get('/harian.csv', async (req, res) => {
+  const tanggal = String(req.query.tanggal || dayjs().tz(TZ).format('YYYY-MM-DD'));
+  const guardId = req.query.guardId ? String(req.query.guardId) : undefined;
+  const siteId = req.query.siteId ? String(req.query.siteId) : undefined;
+
+  let siteIds = await allowedSiteIds(req);
+  if (siteId) {
+    if (siteIds !== null && !siteIds.includes(siteId))
+      return res.status(403).json({ message: 'Site di luar cakupan akses Anda' });
+    siteIds = [siteId];
+  }
+
+  const hasil = await laporanHarian(tanggal, siteIds, guardId);
+  const jam = (d: Date | null) => (d ? dayjs(d).tz(TZ).format('HH:mm') : '-');
+
+  const rows: string[][] = [
+    [
+      'Tanggal', 'NIP', 'Nama', 'Site', 'Shift', 'Masuk', 'Keluar', 'Status', 'Telat (menit)',
+      'Jam kerja', 'Putaran patroli', 'Titik terpindai', 'Titik seharusnya', 'Titik terlewat',
+      'Kepatuhan %', 'Laporan titik', 'Laporan tertunda', 'Temuan', 'Insiden', 'Tugas selesai',
+      'Tamu', 'Kendaraan', 'Sinyal darurat', 'Catatan temuan',
+    ],
+    ...hasil.rows.map((r) => [
+      hasil.tanggal,
+      r.employeeId || '',
+      r.name,
+      r.siteName || '',
+      r.shiftName || '',
+      jam(r.masuk),
+      jam(r.keluar),
+      r.masuk ? r.statusPresensi || '' : 'TIDAK HADIR',
+      String(r.telatMenit),
+      String(r.jamKerja),
+      String(r.sesiPatroli),
+      String(r.titikTerpindai),
+      String(r.titikSeharusnya),
+      String(r.titikTerlewat),
+      String(r.kepatuhan),
+      String(r.laporanTitik),
+      String(r.laporanTertunda),
+      String(r.temuan.length),
+      String(r.insiden),
+      String(r.tugasSelesai),
+      String(r.tamu),
+      String(r.kendaraan),
+      String(r.darurat),
+      r.temuan.map((t) => `${t.checkpoint} (${t.condition})${t.note ? ': ' + t.note : ''}`).join(' | '),
+    ]),
+  ];
+
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="laporan-harian-${hasil.tanggal}${guardId ? '-perorangan' : ''}.csv"`
+  );
+  res.send('\ufeff' + csv);
 });
 
 /** Peta situasi: site, titik, dan posisi anggota online. */

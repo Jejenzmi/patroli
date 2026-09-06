@@ -102,7 +102,7 @@ async function bootstrap() {
   mulaiPenjadwalRetensi();
   mulaiPenjadwalKepatuhan();
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`▸ PATROLI API siap di :${PORT}`);
+    console.log(`▸ DHARMAPATI API siap di :${PORT}`);
   });
 }
 

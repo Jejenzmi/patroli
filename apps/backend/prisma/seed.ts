@@ -1,5 +1,5 @@
 /**
- * Seed PATROLI — data contoh yang menyerupai operasional nyata:
+ * Seed DHARMAPATI — data contoh yang menyerupai operasional nyata:
  * 3 klien, 5 site, titik patroli, rute, shift, roster 21 hari,
  * presensi, sesi patroli beserta pemindaian, insiden, tamu, kendaraan.
  */
@@ -23,7 +23,7 @@ async function main() {
     return;
   }
 
-  console.log('▸ Menyiapkan data contoh PATROLI…');
+  console.log('▸ Menyiapkan data contoh DHARMAPATI…');
   const hash = (p: string) => bcrypt.hashSync(p, 10);
 
   /* ── Klien ── */
@@ -527,7 +527,7 @@ async function main() {
 
   await prisma.setting.createMany({
     data: [
-      { key: 'org.name', value: 'PATROLI Command Center' },
+      { key: 'org.name', value: 'DHARMAPATI Command Center' },
       { key: 'org.company', value: 'PT Garda Nusantara Sekuriti' },
       { key: 'patrol.min_rounds_per_shift', value: 2 },
       { key: 'tracking.ping_interval_sec', value: 60 },

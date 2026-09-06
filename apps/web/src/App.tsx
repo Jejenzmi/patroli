@@ -43,6 +43,7 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import Pnl from './pages/Pnl';
 import Compliance from './pages/Compliance';
 import Relief from './pages/Relief';
+import DailyReport from './pages/DailyReport';
 
 function Guard({ children }: { children: JSX.Element }) {
   const { me, ready } = useAuth();
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/tagihan" element={<Invoices />} />
         <Route path="/tagihan/:id" element={<InvoiceDetail />} />
         <Route path="/laba-rugi" element={<Pnl />} />
+        <Route path="/laporan-harian" element={<DailyReport />} />
         <Route path="/laporan" element={<Reports />} />
         <Route path="/jejak-audit" element={<AuditTrail />} />
         <Route path="/profil" element={<Profile />} />

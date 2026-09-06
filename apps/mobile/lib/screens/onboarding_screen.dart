@@ -85,16 +85,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Container(
                     width: 34,
                     height: 34,
-                    decoration: BoxDecoration(
-                      color: P.amber.withOpacity(.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: P.amber.withOpacity(.35)),
-                    ),
-                    child: const Icon(Icons.shield_outlined, color: P.amber, size: 17),
+                    child: Image.asset('assets/merek/logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(width: 10),
-                  const Text('PATROLI',
-                      style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 3.5, fontSize: 14)),
+                  const Text('DHARMAPATI',
+                      style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2.5, fontSize: 13.5)),
                   const Spacer(),
                   TextButton(
                     onPressed: _finish,

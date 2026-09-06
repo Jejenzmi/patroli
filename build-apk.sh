@@ -1,5 +1,5 @@
 #!/bin/bash
-# Membangun APK PATROLI lewat Docker agar host tidak perlu memasang Flutter SDK.
+# Membangun APK DHARMAPATI lewat Docker agar host tidak perlu memasang Flutter SDK.
 set -e
 IMG=ghcr.io/cirruslabs/flutter:3.24.5
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -15,4 +15,4 @@ docker run --rm \
   -e GRADLE_USER_HOME=/home/cirrus/.gradle \
   "$IMG" bash tools/build-in-docker.sh
 
-echo "▸ APK: $ROOT/apps/mobile/dist/PATROLI.apk"
+echo "▸ APK: $ROOT/apps/mobile/dist/DHARMAPATI.apk"

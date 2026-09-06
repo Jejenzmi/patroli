@@ -92,22 +92,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       Row(
                         children: [
                           Container(
-                            height: 52,
-                            width: 52,
-                            decoration: BoxDecoration(
-                              color: P.amber.withOpacity(.12),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: P.amber.withOpacity(.35)),
-                            ),
-                            child: const Icon(Icons.shield_outlined, color: P.amber, size: 26),
+                            height: 56,
+                            width: 56,
+                            padding: const EdgeInsets.all(4),
+                            child: Image.asset('assets/merek/logo.png', fit: BoxFit.contain),
                           ),
                           const SizedBox(width: 14),
                           const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('PATROLI',
+                              Text('DHARMAPATI',
                                   style: TextStyle(
-                                      fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 5)),
+                                      fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 3)),
                               SizedBox(height: 2),
                               Kicker('Aplikasi Lapangan'),
                             ],

@@ -1,10 +1,10 @@
 /**
- * Mengambil tangkapan layar untuk Panduan Penggunaan PATROLI:
+ * Mengambil tangkapan layar untuk Panduan Penggunaan DHARMAPATI:
  * halaman web (1440x900) dan layar aplikasi lapangan (412x892).
  */
 const puppeteer = require('puppeteer');
 
-const WEB = 'https://patroli.gokar.id';
+const WEB = 'https://dashboard.dharmapati.co.id';
 const APP = 'http://127.0.0.1:8125';
 const OUT = '/img';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

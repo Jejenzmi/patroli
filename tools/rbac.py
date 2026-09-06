@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Menguji matriks hak akses PATROLI: tiap peran terhadap tiap endpoint."""
+"""Menguji matriks hak akses DHARMAPATI: tiap peran terhadap tiap endpoint."""
 import json
 import ssl
 import urllib.request
@@ -10,7 +10,7 @@ KONTEKS = ssl.create_default_context()
 KONTEKS.check_hostname = False
 KONTEKS.verify_mode = ssl.CERT_NONE
 
-BASE = "https://patroli.gokar.id/api"
+BASE = "https://dashboard.dharmapati.co.id/api"
 
 AKUN = {
     "SUPER_ADMIN": ("admin", "admin123"),

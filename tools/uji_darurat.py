@@ -1,7 +1,7 @@
 """Uji rangkaian darurat: jenis kejadian → divisi penanggap → sirene tiang."""
 import json, urllib.request, urllib.error, sys, time
 
-BASE = "https://patroli.gokar.id/api"
+BASE = "https://dashboard.dharmapati.co.id/api"
 ok = fail = 0
 
 def call(method, path, token=None, body=None):

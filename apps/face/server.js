@@ -1,5 +1,5 @@
 /**
- * Layanan pengenalan wajah PATROLI.
+ * Layanan pengenalan wajah DHARMAPATI.
  *
  * Dipisah dari backend agar pustaka model yang berat tidak membebani API utama.
  * Menerima gambar, mendeteksi wajah, lalu mengembalikan vektor ciri 128 dimensi.

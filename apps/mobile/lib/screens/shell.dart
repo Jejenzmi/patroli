@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/theme.dart';
 import '../blocs/duty_bloc.dart';
+import '../models/models.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/laporan_titik.dart';
 import '../widgets/man_down.dart';
 import 'home_screen.dart';
 import 'patrol_screen.dart';
@@ -47,11 +49,39 @@ class _ShellScreenState extends State<ShellScreen> {
       context,
       MaterialPageRoute(builder: (_) => const ScanScreen()),
     );
-    if (code != null && mounted) {
-      context.read<DutyBloc>().add(
-            DutyCheckpointScanned(sessionId: duty.session!.id, code: code, method: 'QR'),
-          );
+    if (code == null || !mounted) return;
+
+    // Laporan titik diminta sekarang juga, bukan nanti: begitu lembar ini
+    // dibatalkan, pemindaiannya pun tidak dikirim — sesuai aturan bahwa titik
+    // berikutnya tidak boleh dipindai sebelum titik ini dilaporkan.
+    final kode = code.replaceFirst(RegExp(r'^(DHARMAPATI|PATROLI):CP:'), '').trim();
+    // firstOrNull berasal dari package:collection yang tidak dipakai proyek ini,
+    // jadi pencarian ditulis apa adanya.
+    Checkpoint? titik;
+    for (final c in duty.session!.route.checkpoints) {
+      if (c.code.toLowerCase() == kode.toLowerCase()) {
+        titik = c;
+        break;
+      }
     }
+    final laporan = await mintaLaporanTitik(
+      context,
+      namaTitik: titik?.name ?? 'Titik $kode',
+      wajibFoto: duty.session!.route.requirePhoto,
+    );
+    if (laporan == null || !mounted) return;
+
+    context.read<DutyBloc>().add(
+          DutyCheckpointScanned(
+            sessionId: duty.session!.id,
+            code: code,
+            method: 'QR',
+            condition: laporan.condition,
+            note: laporan.note,
+            photoUrl: laporan.photoUrl,
+            foto: laporan.foto,
+          ),
+        );
   }
 
   @override

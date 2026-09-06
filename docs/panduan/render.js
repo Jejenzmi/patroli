@@ -19,7 +19,7 @@ const puppeteer = require('puppeteer');
   });
 
   await page.pdf({
-    path: '/out/Panduan-Penggunaan-PATROLI.pdf',
+    path: '/out/Panduan-Penggunaan-DHARMAPATI.pdf',
     format: 'A4',
     printBackground: true,
     margin: { top: '18mm', right: '16mm', bottom: '20mm', left: '16mm' },
@@ -28,7 +28,7 @@ const puppeteer = require('puppeteer');
     footerTemplate: `
       <div style="width:100%;font-family:Inter,Arial,sans-serif;font-size:7.6pt;color:#8494AC;
                   padding:0 16mm;display:flex;justify-content:space-between;align-items:center;">
-        <span>Panduan Penggunaan PATROLI · Security Guard Management &amp; Patrol Tracking</span>
+        <span>Panduan Penggunaan DHARMAPATI · Security Guard Management &amp; Patrol Tracking</span>
         <span>Hal. <span class="pageNumber"></span> / <span class="totalPages"></span></span>
       </div>`,
   });

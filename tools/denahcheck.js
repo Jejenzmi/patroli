@@ -1,6 +1,6 @@
 /** Memastikan penampil denah lantai pada Peta Situasi benar-benar tergambar. */
 const puppeteer = require("puppeteer");
-const BASE = "https://patroli.gokar.id";
+const BASE = "https://dashboard.dharmapati.co.id";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {

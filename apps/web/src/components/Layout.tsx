@@ -7,7 +7,7 @@ import {
   Users, Building2, MapPin, UserSquare2, Car, ClipboardList, Boxes, Megaphone,
   BarChart3, ScrollText, LogOut, Bell, Menu, Radio, Siren, ChevronsLeft, ChevronsRight, Search,
   ClipboardCheck, Trophy, Layers, CalendarClock, Volume2, ShieldAlert,
-  Wallet, FileSignature, Receipt, Scale, FileBadge, UserPlus,
+  Wallet, FileSignature, Receipt, Scale, FileBadge, UserPlus, CalendarCheck,
 } from 'lucide-react';
 import { useAuth, useToast, getSocket, toast } from '../lib/store';
 import { api } from '../lib/api';
@@ -78,6 +78,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: 'Analitik',
     items: [
       { to: '/kpi', label: 'Penilaian Kinerja', icon: Trophy, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR', 'CLIENT'] },
+      { to: '/laporan-harian', label: 'Laporan Harian', icon: CalendarCheck },
       { to: '/laporan', label: 'Laporan & Ekspor', icon: BarChart3 },
       { to: '/integritas', label: 'Integritas & Perangkat', icon: ShieldAlert, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
       { to: '/jejak-audit', label: 'Jejak Audit', icon: ScrollText, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPERVISOR'] },
@@ -283,12 +284,10 @@ export default function Layout() {
         )}
       >
         <div className={clsx('flex items-center gap-2.5 border-b border-line/70 px-4 py-4', collapsed && 'justify-center px-2')}>
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber/15 border border-amber/30">
-            <ShieldCheck size={18} className="text-amber" />
-          </div>
+          <img src="/merek/logo.png" alt="Dharmapati" className="h-9 w-auto shrink-0" />
           {!collapsed && (
             <div className="leading-tight">
-              <p className="text-sm font-extrabold tracking-[.18em] text-ink">PATROLI</p>
+              <p className="text-sm font-extrabold tracking-[.18em] text-ink">DHARMAPATI</p>
               <p className="text-[9.5px] uppercase tracking-[.16em] text-muted">Command Center</p>
             </div>
           )}
@@ -321,10 +320,8 @@ export default function Layout() {
               className="fixed inset-y-0 left-0 z-50 w-[260px] border-r border-line bg-abyss lg:hidden"
             >
               <div className="flex items-center gap-2.5 border-b border-line px-4 py-4">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber/15 border border-amber/30">
-                  <ShieldCheck size={18} className="text-amber" />
-                </div>
-                <p className="text-sm font-extrabold tracking-[.18em]">PATROLI</p>
+                <img src="/merek/logo.png" alt="Dharmapati" className="h-9 w-auto" />
+                <p className="text-sm font-extrabold tracking-[.18em]">DHARMAPATI</p>
               </div>
               {rail}
             </motion.aside>

@@ -1,6 +1,6 @@
 /** Menguji dialog konfirmasi web: muncul, membatalkan, dan menyimpan. */
 const puppeteer = require('puppeteer');
-const BASE = 'https://patroli.gokar.id';
+const BASE = 'https://dashboard.dharmapati.co.id';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

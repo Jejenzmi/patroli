@@ -1,5 +1,5 @@
 /**
- * Menyusun berkas HTML Panduan Penggunaan PATROLI.
+ * Menyusun berkas HTML Panduan Penggunaan DHARMAPATI.
  * Jalankan: node build.js  →  menghasilkan panduan.html
  */
 const fs = require('fs');
@@ -45,7 +45,7 @@ function sub(judul) {
 part('Pendahuluan', 'Tentang Panduan Ini', () => {
   const s = [];
   s.push(p(
-    'Panduan ini menjelaskan cara memakai <strong>PATROLI</strong> — sistem manajemen satuan pengamanan dan pelacakan patroli — baik lewat <strong>aplikasi web (Pusat Komando)</strong> maupun <strong>aplikasi lapangan Android</strong>. Seluruh gambar di dalamnya diambil langsung dari sistem yang berjalan, bukan gambar rancangan.'
+    'Panduan ini menjelaskan cara memakai <strong>DHARMAPATI</strong> — sistem manajemen satuan pengamanan dan pelacakan patroli — baik lewat <strong>aplikasi web (Pusat Komando)</strong> maupun <strong>aplikasi lapangan Android</strong>. Seluruh gambar di dalamnya diambil langsung dari sistem yang berjalan, bukan gambar rancangan.'
   ));
   s.push(sub('Untuk siapa panduan ini'));
   s.push(`<div class="role-grid">
@@ -63,18 +63,18 @@ part('Pendahuluan', 'Tentang Panduan Ini', () => {
   s.push(table(
     ['Layanan', 'Alamat', 'Keterangan'],
     [
-      ['Aplikasi web', '<code>https://patroli.gokar.id</code>', 'Dibuka dari peramban komputer maupun ponsel'],
-      ['Aplikasi Android', '<code>https://patroli.gokar.id/PATROLI.apk</code>', 'Unduh lalu pasang di ponsel anggota'],
+      ['Aplikasi web', '<code>https://dashboard.dharmapati.co.id</code>', 'Dibuka dari peramban komputer maupun ponsel'],
+      ['Aplikasi Android', '<code>https://dashboard.dharmapati.co.id/DHARMAPATI.apk</code>', 'Unduh lalu pasang di ponsel anggota'],
     ]
   ));
   return s.join('\n');
 });
 
-/* ═══════════════ 2. MENGENAL PATROLI ═══════════════ */
-part('Pendahuluan', 'Mengenal PATROLI', () => {
+/* ═══════════════ 2. MENGENAL DHARMAPATI ═══════════════ */
+part('Pendahuluan', 'Mengenal DHARMAPATI', () => {
   const s = [];
   s.push(p(
-    'PATROLI menggantikan buku jaga dan laporan tulis tangan dengan catatan digital yang dapat diverifikasi. Setiap kehadiran, putaran patroli, dan kejadian tercatat lengkap dengan waktu, koordinat, dan pelakunya — sehingga laporan kepada klien tidak lagi berdasarkan ingatan.'
+    'DHARMAPATI menggantikan buku jaga dan laporan tulis tangan dengan catatan digital yang dapat diverifikasi. Setiap kehadiran, putaran patroli, dan kejadian tercatat lengkap dengan waktu, koordinat, dan pelakunya — sehingga laporan kepada klien tidak lagi berdasarkan ingatan.'
   ));
   s.push(sub('Tiga bagian sistem'));
   s.push(table(
@@ -144,7 +144,7 @@ part('Bagian A · Aplikasi Web', 'Masuk dan Mengenal Layar', () => {
   const s = [];
   s.push(sub('Masuk ke sistem'));
   s.push(steps([
-    'Buka <code>https://patroli.gokar.id</code> pada peramban (Chrome, Edge, atau Safari).',
+    'Buka <code>https://dashboard.dharmapati.co.id</code> pada peramban (Chrome, Edge, atau Safari).',
     'Isi <strong>nama pengguna</strong> — dapat berupa nama pengguna, NIP, atau surel yang diberikan administrator.',
     'Isi <strong>kata sandi</strong>. Ketuk ikon mata bila ingin memastikan ketikan Anda benar.',
     'Tekan tombol <strong>Masuk</strong>.',
@@ -762,7 +762,7 @@ part('Bagian B · Aplikasi Lapangan', 'Memasang dan Membuka Aplikasi', () => {
   const s = [];
   s.push(sub('Memasang aplikasi'));
   s.push(steps([
-    'Buka <code>https://patroli.gokar.id/PATROLI.apk</code> dari peramban ponsel Android.',
+    'Buka <code>https://dashboard.dharmapati.co.id/DHARMAPATI.apk</code> dari peramban ponsel Android.',
     'Ketuk berkas hasil unduhan.',
     'Bila muncul peringatan “sumber tidak dikenal”, ketuk <strong>Setelan</strong> lalu izinkan pemasangan dari peramban tersebut.',
     'Ketuk <strong>Pasang</strong>, lalu <strong>Buka</strong>.',
@@ -836,7 +836,7 @@ part('Bagian B · Aplikasi Lapangan', 'Menjalankan Patroli', () => {
   s.push(steps([
     'Buka tab <strong>Patroli</strong>.',
     'Periksa kartu rute: jumlah titik, durasi target, dan aturannya (wajib urut / wajib foto).',
-    'Ketuk <strong>MULAI PATROLI</strong> lalu setujui konfirmasi. Waktu mulai dicatat saat itu juga.',
+    'Ketuk <strong>MULAI DHARMAPATI</strong> lalu setujui konfirmasi. Waktu mulai dicatat saat itu juga.',
   ]));
   s.push(hp('hp-patroli', 'Tab Patroli sebelum putaran dimulai.'));
   s.push(hp('hp-patroli-aktif', 'Putaran berjalan: peta titik, kemajuan, dan tombol AKHIRI di kanan atas.'));
@@ -1064,7 +1064,7 @@ part('Bagian D', 'Pemecahan Masalah', () => {
     [
       ['Presensi ditolak, muncul jarak dalam meter', 'Posisi di luar radius geofence site, atau GPS belum mengunci', 'Mendekat ke pos jaga, keluar dari bangunan beton sebentar, tunggu 10–20 detik, ulangi'],
       ['“Layanan lokasi perangkat mati”', 'GPS ponsel dinonaktifkan', 'Aktifkan lokasi di panel pengaturan cepat ponsel'],
-      ['“Izin lokasi diblokir permanen”', 'Izin ditolak permanen saat pemasangan', 'Setelan ponsel → Aplikasi → PATROLI → Izin → Lokasi → Izinkan'],
+      ['“Izin lokasi diblokir permanen”', 'Izin ditolak permanen saat pemasangan', 'Setelan ponsel → Aplikasi → DHARMAPATI → Izin → Lokasi → Izinkan'],
       ['QR tidak terbaca', 'Stiker kotor, buram, atau terlalu gelap', 'Bersihkan stiker, nyalakan senter aplikasi; bila tetap gagal gunakan verifikasi GPS lewat ikon ⋯'],
       ['“Titik ini tidak termasuk dalam rute”', 'Memindai titik milik rute atau site lain', 'Periksa rute yang sedang berjalan; hubungi danru bila rute keliru'],
       ['“Titik ini sudah dipindai”', 'Titik yang sama dipindai dua kali', 'Lanjutkan ke titik berikutnya'],
@@ -1073,7 +1073,7 @@ part('Bagian D', 'Pemecahan Masalah', () => {
       ['Tidak ada rute di tab Patroli', 'Jadwal hari ini belum diberi rute', 'Hubungi danru agar jadwal dilengkapi rute'],
       ['Tidak ada jadwal hari ini', 'Roster belum disusun', 'Hubungi administrator'],
       ['Aplikasi meminta masuk ulang', 'Sesi 30 hari berakhir atau sandi diubah', 'Masuk kembali dengan sandi terbaru'],
-      ['Akun klien ditolak di aplikasi', 'Akun klien memang hanya untuk portal web', 'Buka <code>patroli.gokar.id</code> lewat peramban'],
+      ['Akun klien ditolak di aplikasi', 'Akun klien memang hanya untuk portal web', 'Buka <code>dashboard.dharmapati.co.id</code> lewat peramban'],
       ['Peta kosong di web', 'Jaringan memblokir peta OpenStreetMap', 'Gunakan jaringan lain; fungsi lain tetap berjalan normal'],
       ['Angka “hari ini” nol pada dini hari', 'Hari baru saja berganti', 'Lihat rentang tanggal di halaman Laporan'],
     ]
@@ -1172,7 +1172,7 @@ const html = `<!doctype html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<title>Panduan Penggunaan PATROLI</title>
+<title>Panduan Penggunaan DHARMAPATI</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -1186,7 +1186,7 @@ const html = `<!doctype html>
         <circle cx="16" cy="14.5" r="3.2" fill="#22D3EE"/>
       </svg></div>
       <div>
-        <div class="cover-name">PATROLI</div>
+        <div class="cover-name">DHARMAPATI</div>
         <div class="cover-sub">Security Command Center</div>
       </div>
     </div>
@@ -1197,7 +1197,7 @@ const html = `<!doctype html>
   </div>
   <div class="cover-meta">
     <div><b>Versi 1.0</b>Dokumen panduan pengguna</div>
-    <div><b>patroli.gokar.id</b>Alamat sistem</div>
+    <div><b>dashboard.dharmapati.co.id</b>Alamat sistem</div>
     <div><b>Web &amp; Android</b>Cakupan panduan</div>
     <div><b>Semua peran</b>Anggota, supervisor, admin, klien</div>
   </div>

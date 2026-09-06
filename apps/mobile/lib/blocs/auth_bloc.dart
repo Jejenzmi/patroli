@@ -79,7 +79,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         if (user.role == 'CLIENT') {
           return emit(const AuthState(
             status: AuthStatus.unauthenticated,
-            error: 'Akun klien dilayani lewat portal web patroli.gokar.id, bukan aplikasi lapangan.',
+            error: 'Akun klien dilayani lewat portal web dashboard.dharmapati.co.id, bukan aplikasi lapangan.',
           ));
         }
         await Session.save(r['token'], jsonEncode(user.toJson()));

@@ -1,4 +1,4 @@
-// PATROLI — Security Guard Management & Patrol Tracking System
+// DHARMAPATI — Security Guard Management & Patrol Tracking System
 generator client {
   provider = "prisma-client-js"
 }
@@ -412,6 +412,10 @@ model PatrolRoute {
   /// Wajib scan berurutan sesuai orderIndex
   enforceOrder        Boolean  @default(false)
   requirePhoto        Boolean  @default(false)
+  /// Setiap titik wajib dilaporkan kondisinya sebelum titik berikutnya boleh
+  /// dipindai. Inilah yang membuat patroli menghasilkan catatan, bukan sekadar
+  /// jejak lewat.
+  requireReport       Boolean  @default(true)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -564,6 +568,9 @@ model PatrolScan {
   condition    CheckpointCondition @default(AMAN)
   isLate       Boolean             @default(false)
   orderIndex   Int                 @default(0)
+  /// Waktu laporan titik ini diisi. Selama masih null dan rutenya mewajibkan
+  /// laporan, titik berikutnya tidak dapat dipindai.
+  reportedAt   DateTime?
   /// Ditandai bila jarak pemindaian jauh di luar toleransi titik
   distanceFlag Boolean             @default(false)
 

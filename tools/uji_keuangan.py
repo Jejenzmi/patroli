@@ -6,7 +6,7 @@ Menguji lewat API sungguhan pada instans yang sedang berjalan, lalu
 membersihkan seluruh data yang dibuatnya sendiri. Jalankan dari VPS:
 
     python3 tools/uji_keuangan.py
-    BASE=https://patroli.gokar.id python3 tools/uji_keuangan.py
+    BASE=https://dashboard.dharmapati.co.id python3 tools/uji_keuangan.py
 """
 
 import datetime

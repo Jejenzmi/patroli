@@ -266,13 +266,22 @@ async function seedKontrak() {
 
 async function main() {
   const tahun = new Date().getFullYear();
-  console.log('▸ Seeder keuangan PATROLI');
+  console.log('▸ Seeder keuangan DHARMAPATI');
+
+  // Data acuan — selalu dipasang karena berlaku umum, bukan contoh.
   await seedTer();
   await seedPengaturan();
   await seedUmk(tahun);
-  await seedGolongan();
   await seedLibur(tahun);
-  await seedKontrak();
+
+  // Golongan upah dan kontrak adalah contoh: nilainya karangan dan hanya
+  // berguna untuk peragaan. Instans produksi mengisinya sendiri.
+  if (process.env.SEED_DEMO === 'true') {
+    await seedGolongan();
+    await seedKontrak();
+  } else {
+    console.log('  · golongan upah & kontrak dilewati (bukan peragaan)');
+  }
   console.log('▸ selesai');
 }
 

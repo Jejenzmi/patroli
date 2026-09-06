@@ -53,7 +53,7 @@ class PatroliApp extends StatelessWidget {
         BlocProvider(create: (_) => DutyBloc()),
       ],
       child: MaterialApp(
-        title: 'PATROLI',
+        title: 'DHARMAPATI',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         // Pengaturan ukuran huruf sistem dibatasi agar tata letak tetap utuh

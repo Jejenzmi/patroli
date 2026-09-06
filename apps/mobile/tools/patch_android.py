@@ -1,4 +1,4 @@
-"""Menyesuaikan kerangka Android hasil `flutter create` untuk kebutuhan PATROLI.
+"""Menyesuaikan kerangka Android hasil `flutter create` untuk kebutuhan DHARMAPATI.
 
 Nilai compileSdk/minSdk sengaja dibiarkan mengikuti bawaan Flutter
 (`flutter.compileSdkVersion` dkk.) — plugin seperti geolocator_android membaca
@@ -22,7 +22,7 @@ src = manifest.read_text()
 
 if "ACCESS_FINE_LOCATION" not in src:
     src = src.replace("<application", PERMS + "    <application", 1)
-src = re.sub(r'android:label="[^"]*"', 'android:label="PATROLI"', src, count=1)
+src = re.sub(r'android:label="[^"]*"', 'android:label="DHARMAPATI"', src, count=1)
 
 # Layar penuh pada perangkat berlayar jangkung: tanpa ini sebagian ROM
 # menyempitkan jendela aplikasi sehingga isinya menempel di satu sisi.

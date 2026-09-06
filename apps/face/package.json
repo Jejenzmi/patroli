@@ -2,7 +2,7 @@
   "name": "@patroli/face",
   "version": "1.0.0",
   "private": true,
-  "description": "Layanan pengenalan wajah untuk verifikasi presensi PATROLI",
+  "description": "Layanan pengenalan wajah untuk verifikasi presensi DHARMAPATI",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": {

@@ -1,6 +1,6 @@
 # Panduan Penggunaan — sumber dokumen
 
-Menghasilkan `Panduan-Penggunaan-PATROLI.pdf` (A4, bernomor halaman) dari sistem yang berjalan.
+Menghasilkan `Panduan-Penggunaan-DHARMAPATI.pdf` (A4, bernomor halaman) dari sistem yang berjalan.
 
 | Berkas | Isi |
 |---|---|
@@ -15,7 +15,7 @@ Menghasilkan `Panduan-Penggunaan-PATROLI.pdf` (A4, bernomor halaman) dari sistem
 ```bash
 # 1. Siapkan preview aplikasi lapangan (untuk tangkapan layar mobile)
 cd apps/mobile && flutter build web --release --web-renderer html \
-  --dart-define=API_BASE=https://patroli.gokar.id
+  --dart-define=API_BASE=https://dashboard.dharmapati.co.id
 docker run -d --name patroli-webpreview -p 127.0.0.1:8125:80 \
   -v $PWD/build/web:/usr/share/nginx/html:ro nginx:alpine
 
@@ -31,4 +31,4 @@ docker run --rm -v $PWD:/app -v $PWD/out:/out -w /app \
 ```
 
 Hasil disalin ke `/var/www/patroli/` agar tersaji di
-`https://patroli.gokar.id/Panduan-Penggunaan-PATROLI.pdf`.
+`https://dashboard.dharmapati.co.id/Panduan-Penggunaan-DHARMAPATI.pdf`.

@@ -9,7 +9,7 @@ import 'sinkron.dart';
 /// Alamat server. Ganti lewat --dart-define=API_BASE saat build bila perlu.
 const kApiBase = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'https://patroli.gokar.id',
+  defaultValue: 'https://dashboard.dharmapati.co.id',
 );
 
 class Api {

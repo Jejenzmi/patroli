@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
   const platform = parsed.data.platform;
   if (platform === 'web' && user.role === 'GUARD')
     return res.status(403).json({
-      message: 'Akun anggota dilayani lewat aplikasi lapangan PATROLI, bukan portal web.',
+      message: 'Akun anggota dilayani lewat aplikasi lapangan DHARMAPATI, bukan portal web.',
     });
   // Satu akun, satu ponsel. Diperiksa hanya untuk aplikasi lapangan;
   // portal web memang dipakai berpindah-pindah komputer.
@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
 
   if (platform === 'mobile' && user.role === 'CLIENT')
     return res.status(403).json({
-      message: 'Akun klien dilayani lewat portal web patroli.gokar.id, bukan aplikasi lapangan.',
+      message: 'Akun klien dilayani lewat portal web dashboard.dharmapati.co.id, bukan aplikasi lapangan.',
     });
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });

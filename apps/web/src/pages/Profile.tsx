@@ -93,10 +93,10 @@ export default function Profile() {
 
           <Panel title="Aplikasi Lapangan" icon={Smartphone}>
             <p className="text-[13px] leading-relaxed text-muted">
-              Anggota di lapangan menggunakan aplikasi Android PATROLI untuk presensi bergeofence,
+              Anggota di lapangan menggunakan aplikasi Android DHARMAPATI untuk presensi bergeofence,
               pemindaian titik patroli via QR/NFC, pelaporan insiden bergambar, dan tombol darurat.
             </p>
-            <a href="/PATROLI.apk" className="btn-ghost mt-4 w-full" download>
+            <a href="/DHARMAPATI.apk" className="btn-ghost mt-4 w-full" download>
               <Smartphone size={14} /> Unduh Aplikasi Android (APK)
             </a>
           </Panel>
@@ -107,7 +107,7 @@ export default function Profile() {
               langkah tiap modul, alur kerja harian, dan pemecahan masalah yang sering terjadi.
             </p>
             <a
-              href="/Panduan-Penggunaan-PATROLI.pdf"
+              href="/Panduan-Penggunaan-DHARMAPATI.pdf"
               target="_blank"
               rel="noreferrer"
               className="btn-primary mt-4 w-full"

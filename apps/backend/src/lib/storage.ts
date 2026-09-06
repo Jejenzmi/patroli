@@ -15,7 +15,7 @@ export const minio = new Client({
   secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
 });
 
-/** Basis URL publik yang dilayani nginx (mis. https://patroli.gokar.id/storage). */
+/** Basis URL publik yang dilayani nginx (mis. https://dashboard.dharmapati.co.id/storage). */
 const PUBLIC_BASE = process.env.STORAGE_PUBLIC_URL || '/storage';
 
 export async function ensureBucket() {

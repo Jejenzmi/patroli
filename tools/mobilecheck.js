@@ -5,7 +5,7 @@
 const puppeteer = require('puppeteer');
 
 const APP = 'http://127.0.0.1:8125';
-const API = 'https://patroli.gokar.id';
+const API = 'https://dashboard.dharmapati.co.id';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Koordinat sentuh pada layar masuk (CSS px, viewport 412x892)

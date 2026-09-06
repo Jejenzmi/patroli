@@ -196,6 +196,7 @@ export default function CheckpointsRoutes() {
                   <span className="chip border-line text-muted">toleransi {r.graceMin} mnt</span>
                   {r.enforceOrder && <span className="chip border-violet/35 bg-violet/10 text-violet">wajib urut</span>}
                   {r.requirePhoto && <span className="chip border-emerald/35 bg-emerald/10 text-emerald">wajib foto</span>}
+                  {r.requireReport !== false && <span className="chip border-amber/35 bg-amber/10 text-amber">wajib laporan</span>}
                 </div>
 
                 <ol className="mt-4 space-y-1.5">
@@ -322,6 +323,16 @@ export default function CheckpointsRoutes() {
                     <input type="checkbox" className="!w-auto" checked={!!form.requirePhoto} onChange={(e) => setForm({ ...form, requirePhoto: e.target.checked })} />
                     <span className="text-[13px]">Wajib foto tiap titik</span>
                   </label>
+                  <label className="flex cursor-pointer items-start gap-2 normal-case tracking-normal text-ink">
+                    <input type="checkbox" className="!w-auto mt-1" checked={form.requireReport !== false} onChange={(e) => setForm({ ...form, requireReport: e.target.checked })} />
+                    <span className="text-[13px]">
+                      Wajib laporan tiap titik
+                      <span className="block text-[11px] text-muted">
+                        Titik berikutnya tidak dapat dipindai — dan putaran tidak dapat diakhiri — sebelum kondisi
+                        titik sebelumnya dilaporkan.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </Field>
               <Field label="Keterangan" className="sm:col-span-2">
@@ -397,11 +408,11 @@ export default function CheckpointsRoutes() {
       <Modal open={!!qrOf} onClose={() => setQrOf(null)} title="Kartu QR Titik Patroli">
         {qrOf && (
           <div id="qr-print" className="rounded-2xl border border-line bg-white p-6 text-center text-black">
-            <p className="text-[10px] font-bold uppercase tracking-[.25em] text-black/50">PATROLI · TITIK PEMERIKSAAN</p>
+            <p className="text-[10px] font-bold uppercase tracking-[.25em] text-black/50">DHARMAPATI · TITIK PEMERIKSAAN</p>
             <h3 className="mt-2 text-xl font-extrabold">{qrOf.name}</h3>
             <p className="text-xs text-black/60">{qrOf.site?.name}</p>
             <div className="my-5 flex justify-center">
-              <QRCodeSVG value={`PATROLI:CP:${qrOf.code}`} size={196} level="H" includeMargin />
+              <QRCodeSVG value={`DHARMAPATI:CP:${qrOf.code}`} size={196} level="H" includeMargin />
             </div>
             <p className="font-mono text-sm font-bold tracking-widest">{qrOf.code}</p>
             {qrOf.nfcTag && <p className="mt-1 font-mono text-[10px] text-black/50">NFC {qrOf.nfcTag}</p>}
